@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   StyleSheet, Text, View, TextInput, TouchableOpacity, 
-  ActivityIndicator, ScrollView, StatusBar, FlatList 
+  ActivityIndicator, ScrollView, StatusBar, FlatList, Keyboard 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const THEME_COLOR = '#497d59';
 
-export default function WeatherScreen() {
+export default function WeatherScreen({ navigation }) {
   const [city, setCity] = useState('');
+  const [suggestions, setSuggestions] = useState([]); 
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('future'); // 'future' or 'past'
+  const [activeTab, setActiveTab] = useState('future');
+  
+  const typingTimeout = useRef(null);
 
   const getWeatherIcon = (code) => {
     if (code === 0) return 'sunny';
@@ -34,41 +37,76 @@ export default function WeatherScreen() {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const fetchWeather = async () => {
-    if (!city) return;
+  const handleTextChange = (text) => {
+    setCity(text);
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    if (text.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    typingTimeout.current = setTimeout(async () => {
+      try {
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${text}&count=5&language=en&format=json`;
+        const response = await fetch(geoUrl);
+        const data = await response.json();
+        if (data.results) {
+          setSuggestions(data.results);
+        } else {
+          setSuggestions([]);
+        }
+      } catch (err) {
+        console.log("Autocomplete error:", err);
+      }
+    }, 500);
+  };
+
+  const selectSuggestion = (item) => {
+    setCity(`${item.name}, ${item.country}`);
+    setSuggestions([]);
+    Keyboard.dismiss(); 
+    fetchWeather(item);
+  };
+
+  const fetchWeather = async (locationData = null) => {
     setLoading(true);
     setError(null);
     setWeather(null);
+    setSuggestions([]); 
 
     try {
-      // 1. Get Coordinates
-      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`;
-      const geoResponse = await fetch(geoUrl);
-      const geoData = await geoResponse.json();
+      let latitude, longitude, name, country;
 
-      if (!geoData.results || geoData.results.length === 0) throw new Error("City not found");
+      if (locationData && locationData.latitude) {
+        latitude = locationData.latitude;
+        longitude = locationData.longitude;
+        name = locationData.name;
+        country = locationData.country;
+      } else {
+        if (!city) return;
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`;
+        const geoResponse = await fetch(geoUrl);
+        const geoData = await geoResponse.json();
+        if (!geoData.results || geoData.results.length === 0) throw new Error("City not found");
+        latitude = geoData.results[0].latitude;
+        longitude = geoData.results[0].longitude;
+        name = geoData.results[0].name;
+        country = geoData.results[0].country;
+      }
 
-      const { latitude, longitude, name, country } = geoData.results[0];
-
-      // 2. Get Comprehensive Weather (Past 7 days + Future 7 days + Hourly)
-      // We ask for past_days=7 and forecast_days=7
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=7&timezone=auto`;
-      
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&hourly=temperature_2m,weather_code,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,relative_humidity_2m_mean&past_days=7&forecast_days=7&timezone=auto`;
       const response = await fetch(weatherUrl);
       const data = await response.json();
 
-      // Process Hourly Data (Next 24 hours only)
-      const currentHourIndex = new Date().getHours() + (7 * 24); // Offset for past 7 days
+      const currentHourIndex = new Date().getHours() + (7 * 24); 
       const next24Hours = data.hourly.time
         .slice(currentHourIndex, currentHourIndex + 24)
         .map((time, index) => ({
           time,
           temp: Math.round(data.hourly.temperature_2m[currentHourIndex + index]),
-          code: data.hourly.weather_code[currentHourIndex + index]
+          code: data.hourly.weather_code[currentHourIndex + index],
+          humidity: data.hourly.relative_humidity_2m[currentHourIndex + index] 
         }));
 
-      // Process Daily Data
-      // The API returns one big array. We split it based on today's date.
       const todayString = new Date().toISOString().split('T')[0];
       const todayIndex = data.daily.time.findIndex(t => t === todayString);
 
@@ -76,19 +114,20 @@ export default function WeatherScreen() {
         date: time,
         max: Math.round(data.daily.temperature_2m_max[i]),
         min: Math.round(data.daily.temperature_2m_min[i]),
-        code: data.daily.weather_code[i]
-      })).reverse(); // Show most recent past day first
+        code: data.daily.weather_code[i],
+        humidity: Math.round(data.daily.relative_humidity_2m_mean[i]) 
+      })).reverse();
 
       const futureDaily = data.daily.time.slice(todayIndex).map((time, i) => ({
         date: time,
         max: Math.round(data.daily.temperature_2m_max[todayIndex + i]),
         min: Math.round(data.daily.temperature_2m_min[todayIndex + i]),
-        code: data.daily.weather_code[todayIndex + i]
+        code: data.daily.weather_code[todayIndex + i],
+        humidity: Math.round(data.daily.relative_humidity_2m_mean[todayIndex + i]) 
       }));
 
       setWeather({
-        name,
-        country,
+        name, country,
         current: {
           temp: Math.round(data.current.temperature_2m),
           code: data.current.weather_code,
@@ -99,7 +138,6 @@ export default function WeatherScreen() {
         dailyFuture: futureDaily,
         dailyPast: pastDaily
       });
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -110,46 +148,70 @@ export default function WeatherScreen() {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
-
-      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Search City..."
-            placeholderTextColor="#ddd"
-            value={city}
-            onChangeText={setCity}
-            onSubmitEditing={fetchWeather}
-          />
-          <TouchableOpacity onPress={fetchWeather}>
-            <Ionicons name="search" size={24} color="#fff" />
-          </TouchableOpacity>
+        <View style={styles.headerTopRow}>
+           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+           </TouchableOpacity>
+           <Text style={styles.headerTitle}>Weather Forecast</Text>
+           <View style={{width: 24}} />
+        </View>
+        <View style={styles.searchBlock}>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Search City (e.g. Pune)..."
+              placeholderTextColor="#ddd"
+              value={city}
+              onChangeText={handleTextChange} 
+              onSubmitEditing={() => fetchWeather(null)}
+            />
+            <TouchableOpacity onPress={() => fetchWeather(null)}>
+              <Ionicons name="search" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <FlatList
+                data={suggestions}
+                keyExtractor={(item, index) => index.toString()}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity 
+                    style={styles.suggestionItem} 
+                    onPress={() => selectSuggestion(item)}
+                  >
+                    <Ionicons name="location-outline" size={20} color="#666" />
+                    <View style={{marginLeft: 10}}>
+                      <Text style={styles.suggestionText}>{item.name}</Text>
+                      <Text style={styles.suggestionSubText}>{item.admin1 ? `${item.admin1}, ` : ''}{item.country}</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          )}
         </View>
       </View>
 
-      {/* Main Content */}
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {loading && <ActivityIndicator size="large" color={THEME_COLOR} style={{marginTop: 50}} />}
         {error && <Text style={styles.errorText}>{error}</Text>}
-
         {weather && !loading && (
           <>
-            {/* Current Weather Big Card */}
             <View style={styles.currentCard}>
-              <Text style={styles.cityName}>{weather.name}, {weather.country}</Text>
+              <Text style={styles.cityName}>{`${weather.name}, ${weather.country}`}</Text>
               <Text style={styles.dateText}>{new Date().toDateString()}</Text>
               <View style={styles.tempContainer}>
                 <Ionicons name={getWeatherIcon(weather.current.code)} size={60} color="#fff" />
-                <Text style={styles.tempText}>{weather.current.temp}°</Text>
+                <Text style={styles.tempText}>{`${weather.current.temp}°`}</Text>
               </View>
               <View style={styles.statsRow}>
-                <Text style={styles.stat}>💧 {weather.current.humidity}%</Text>
-                <Text style={styles.stat}>💨 {weather.current.wind} km/h</Text>
+                <Text style={styles.stat}>{`💧 ${weather.current.humidity}%`}</Text>
+                <Text style={styles.stat}>{`💨 ${weather.current.wind} km/h`}</Text>
               </View>
             </View>
 
-            {/* Hourly Forecast (Horizontal Scroll) */}
             <Text style={styles.sectionTitle}>Hourly Forecast (24h)</Text>
             <FlatList
               horizontal
@@ -161,12 +223,15 @@ export default function WeatherScreen() {
                 <View style={styles.hourlyItem}>
                   <Text style={styles.hourTime}>{formatTime(item.time)}</Text>
                   <Ionicons name={getWeatherIcon(item.code)} size={24} color={THEME_COLOR} />
-                  <Text style={styles.hourTemp}>{item.temp}°</Text>
+                  <Text style={styles.hourTemp}>{`${item.temp}°`}</Text>
+                  <View style={styles.hourlyHumidity}>
+                     <Ionicons name="water" size={10} color="#666" />
+                     <Text style={styles.hourHumidityText}>{`${item.humidity}%`}</Text>
+                  </View>
                 </View>
               )}
             />
 
-            {/* 7-Day Toggle (Past vs Future) */}
             <View style={styles.tabContainer}>
               <TouchableOpacity 
                 style={[styles.tab, activeTab === 'future' && styles.activeTab]} 
@@ -182,16 +247,18 @@ export default function WeatherScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Daily List */}
             <View style={styles.dailyList}>
               {(activeTab === 'future' ? weather.dailyFuture : weather.dailyPast).map((day, index) => (
                 <View key={index} style={styles.dailyItem}>
                   <Text style={styles.dayName}>{formatDate(day.date)}</Text>
                   <View style={styles.dayIconRow}>
                      <Ionicons name={getWeatherIcon(day.code)} size={20} color="#555" />
-                     <Text style={styles.dayCondition}> {day.code > 2 ? 'Cloudy/Rain' : 'Sunny'} </Text>
                   </View>
-                  <Text style={styles.dayTemp}>{day.max}° / {day.min}°</Text>
+                  <View style={styles.dailyHumidity}>
+                    <Ionicons name="water-outline" size={14} color="#666" />
+                    <Text style={styles.dailyHumidityText}>{`${day.humidity}%`}</Text>
+                  </View>
+                  <Text style={styles.dayTemp}>{`${day.max}° / ${day.min}°`}</Text>
                 </View>
               ))}
             </View>
@@ -211,8 +278,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+    zIndex: 10, 
   },
-  searchContainer: {
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchBlock: {
+    position: 'relative',
+    zIndex: 20,
+  },
+  inputWrapper: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 10,
@@ -221,10 +307,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   input: { color: '#fff', fontSize: 16, flex: 1, marginRight: 10 },
-  scrollContent: { paddingBottom: 30 },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 50, 
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    shadowOffset: {width: 0, height: 2},
+    maxHeight: 200, 
+    zIndex: 100,
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  suggestionText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  suggestionSubText: { fontSize: 12, color: '#888' },
+  scrollContent: { paddingBottom: 30, zIndex: 1 },
   errorText: { color: 'red', textAlign: 'center', marginTop: 20 },
-  
-  // Current Weather Card
   currentCard: {
     backgroundColor: THEME_COLOR,
     margin: 20,
@@ -239,8 +347,6 @@ const styles = StyleSheet.create({
   tempText: { fontSize: 50, fontWeight: 'bold', color: '#fff' },
   statsRow: { flexDirection: 'row', gap: 20, marginTop: 15 },
   stat: { color: '#fff', fontSize: 14 },
-
-  // Hourly Section
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginLeft: 20, marginBottom: 10, color: '#333' },
   hourlyList: { paddingHorizontal: 20, paddingBottom: 10 },
   hourlyItem: {
@@ -249,13 +355,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginRight: 10,
-    width: 70,
+    width: 80, 
     elevation: 2,
   },
   hourTime: { fontSize: 10, color: '#666', marginBottom: 5 },
-  hourTemp: { fontWeight: 'bold', marginTop: 5 },
-
-  // Tabs
+  hourTemp: { fontWeight: 'bold', marginVertical: 3 },
+  hourlyHumidity: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
+  hourHumidityText: { fontSize: 10, color: '#666', marginLeft: 2 },
   tabContainer: {
     flexDirection: 'row',
     marginHorizontal: 20,
@@ -269,8 +375,6 @@ const styles = StyleSheet.create({
   activeTab: { backgroundColor: '#fff', elevation: 2 },
   tabText: { color: '#666', fontWeight: '600' },
   activeTabText: { color: THEME_COLOR },
-
-  // Daily List
   dailyList: { marginHorizontal: 20 },
   dailyItem: {
     flexDirection: 'row',
@@ -283,7 +387,8 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   dayName: { fontSize: 16, fontWeight: '600', width: 80 },
-  dayIconRow: { flexDirection: 'row', alignItems: 'center' },
-  dayCondition: { fontSize: 12, color: '#666' },
-  dayTemp: { fontWeight: 'bold', color: '#333' },
+  dayIconRow: { flexDirection: 'row', alignItems: 'center', width: 40 },
+  dailyHumidity: { flexDirection: 'row', alignItems: 'center', width: 60, justifyContent: 'center' },
+  dailyHumidityText: { fontSize: 12, color: '#666', marginLeft: 4 },
+  dayTemp: { fontWeight: 'bold', color: '#333', textAlign: 'right', width: 80 },
 });
