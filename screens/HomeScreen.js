@@ -30,7 +30,7 @@ export default function HomeScreen({ navigation }) {
         {/* Weather Button */}
         <TouchableOpacity 
           style={styles.card}
-          onPress={() => console.log('Navigate to Weather')}
+          onPress={() => navigation.navigate('Weather')}
         >
           <Text style={styles.cardTitle}>Weather</Text>
           <Text style={styles.cardSubtitle}>Check forecast</Text>
