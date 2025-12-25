@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCollection, initDB } from '../services/Database';
 import { Ionicons } from '@expo/vector-icons';
 import { PieChart } from 'react-native-chart-kit';
 import { useIsFocused } from '@react-navigation/native';
@@ -14,28 +14,28 @@ export default function PaymentVisualizationScreen({ navigation }) {
     const [allPayments, setAllPayments] = useState([]);
     const [filteredTotal, setFilteredTotal] = useState(0);
     const [chartData, setChartData] = useState([]);
-    const [filter, setFilter] = useState('Month');
+
+    // Filters
+    const [timeFilter, setTimeFilter] = useState('Month'); // Day, Month, Year
+    // Removed Type Filter
 
     useEffect(() => {
         if (isFocused) loadData();
-    }, [isFocused, filter]);
+    }, [isFocused, timeFilter]);
 
     const loadData = async () => {
         try {
-            const stored = await AsyncStorage.getItem('payments');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                setAllPayments(parsed);
-                processStats(parsed, filter);
-            }
+            await initDB();
+            const stored = await getCollection('payments');
+            setAllPayments(stored);
+            processStats(stored);
         } catch (e) { console.error(e); }
     };
 
-    const processStats = (data, timeFilter) => {
+    const processStats = (data) => {
         const now = new Date();
         let interval;
 
-        // Set the time interval based on filter
         if (timeFilter === 'Day') {
             interval = { start: startOfDay(now), end: endOfDay(now) };
         } else if (timeFilter === 'Month') {
@@ -44,55 +44,72 @@ export default function PaymentVisualizationScreen({ navigation }) {
             interval = { start: startOfYear(now), end: endOfYear(now) };
         }
 
-        let totalExp = 0;
+        let total = 0;
         const catMap = {};
 
         data.forEach(item => {
             const itemDate = parseISO(item.date);
-            // Check if item falls within selected filter period
-            if (isWithinInterval(itemDate, interval) && item.type === 'Expense') {
+            // Filter by Date Only
+            if (isWithinInterval(itemDate, interval)) {
                 const amt = parseFloat(item.amount) || 0;
-                totalExp += amt;
-                catMap[item.category] = (catMap[item.category] || 0) + amt;
+                total += amt;
+                // Group by TYPE now
+                catMap[item.type] = (catMap[item.type] || 0) + amt;
             }
         });
 
-        setFilteredTotal(totalExp);
+        setFilteredTotal(total);
 
-        const greenShades = ['#2d4c36', '#497d59', '#7fb08c', '#b2d8bc', '#d9ede0'];
+        // Dynamic Colors (Random/Hashed for variety)
+        const generateColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+        const colors = Object.keys(catMap).map(() => generateColor());
+
         const formatted = Object.keys(catMap).map((cat, i) => ({
             name: cat,
             population: catMap[cat],
-            color: greenShades[i % greenShades.length],
+            color: colors[i % colors.length],
             legendFontColor: '#444',
             legendFontSize: 12
         }));
+
+        // Sort by amount desc
+        formatted.sort((a, b) => b.population - a.population);
+
         setChartData(formatted);
     };
 
     return (
         <View style={styles.container}>
             <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
+
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
                 <Text style={styles.headerTitle}>Financial Analysis</Text>
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
+
+                {/* Time Filters */}
                 <View style={styles.filterRow}>
                     {['Day', 'Month', 'Year'].map(f => (
                         <TouchableOpacity key={f}
-                            style={[styles.filterBtn, filter === f && styles.activeFilter]}
-                            onPress={() => setFilter(f)}
+                            style={[styles.filterBtn, timeFilter === f && styles.activeFilter]}
+                            onPress={() => setTimeFilter(f)}
                         >
-                            <Text style={[styles.filterText, filter === f && { color: '#fff' }]}>{f}</Text>
+                            <Text style={[styles.filterText, timeFilter === f && { color: '#fff' }]}>{f}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
 
+                {/* Removed Type Toggle UI */}
+
                 <View style={styles.chartCard}>
-                    <Text style={styles.label}>Total Expenditure ({filter})</Text>
-                    <Text style={styles.totalAmt}>₹{filteredTotal.toLocaleString()}</Text>
+                    <Text style={styles.label}>Total Flow ({timeFilter})</Text>
+                    <Text style={[styles.totalAmt, { color: THEME_COLOR }]}>
+                        ₹{filteredTotal.toLocaleString()}
+                    </Text>
 
                     <View style={styles.chartBox}>
                         {chartData.length > 0 ? (
@@ -109,30 +126,32 @@ export default function PaymentVisualizationScreen({ navigation }) {
                                     hasLegend={false}
                                     absolute
                                 />
-                                {/* DONUT HOLE */}
-                                <View style={styles.donutHole}><Text style={styles.holeText}>{filter}</Text></View>
                             </>
-                        ) : <Text style={{ marginTop: 50, color: '#999' }}>No data for this period</Text>}
+                        ) : <Text style={{ marginTop: 50, color: '#999' }}>No data found</Text>}
                     </View>
 
                     <View style={styles.legendGrid}>
                         {chartData.map((item, i) => (
                             <View key={i} style={styles.legendItem}>
                                 <View style={[styles.dot, { backgroundColor: item.color }]} />
-                                <Text style={styles.legendText}>{Math.round((item.population / filteredTotal) * 100)}% {item.name}</Text>
+                                <Text style={styles.legendText}>
+                                    {Math.round((item.population / filteredTotal) * 100)}% {item.name}
+                                </Text>
                             </View>
                         ))}
                     </View>
                 </View>
 
-                <Text style={styles.sectionTitle}>Expense Breakdown</Text>
+                <Text style={styles.sectionTitle}>Breakdown</Text>
                 {chartData.map((item, i) => (
                     <View key={i} style={styles.itemRow}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <View style={[styles.dot, { backgroundColor: item.color }]} />
                             <Text style={styles.itemName}>{item.name}</Text>
                         </View>
-                        <Text style={styles.itemPrice}>₹{item.population.toLocaleString()}</Text>
+                        <Text style={[styles.itemPrice, { color: '#333' }]}>
+                            ₹{item.population.toLocaleString()}
+                        </Text>
                     </View>
                 ))}
             </ScrollView>
@@ -145,16 +164,25 @@ const styles = StyleSheet.create({
     header: { backgroundColor: THEME_COLOR, padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', gap: 15 },
     headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
     scrollContent: { padding: 20 },
-    filterRow: { flexDirection: 'row', backgroundColor: '#e0e5e2', borderRadius: 25, padding: 4, marginBottom: 20 },
+
+    // Filters
+    filterRow: { flexDirection: 'row', backgroundColor: '#e0e5e2', borderRadius: 25, padding: 4, marginBottom: 15 },
     filterBtn: { flex: 1, padding: 10, alignItems: 'center', borderRadius: 20 },
     activeFilter: { backgroundColor: THEME_COLOR },
     filterText: { fontWeight: 'bold', color: '#666' },
+
+    // Type Toggle
+    typeRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20, gap: 15 },
+    typeBtn: { paddingVertical: 8, paddingHorizontal: 25, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd' },
+    activeExpense: { backgroundColor: '#e57373', borderColor: '#e57373' },
+    activeIncome: { backgroundColor: '#4caf50', borderColor: '#4caf50' },
+    typeText: { fontWeight: 'bold', color: '#666' },
+
     chartCard: { backgroundColor: '#fff', borderRadius: 20, padding: 20, alignItems: 'center', elevation: 3 },
     label: { color: '#888', fontSize: 12 },
-    totalAmt: { fontSize: 32, fontWeight: 'bold', color: THEME_COLOR, marginVertical: 10 },
+    totalAmt: { fontSize: 32, fontWeight: 'bold', marginVertical: 10 },
     chartBox: { width: screenWidth, height: 220, justifyContent: 'center', alignItems: 'center' },
-    donutHole: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', left: (screenWidth / 2) - 100 },
-    holeText: { fontSize: 10, color: '#ccc', fontWeight: 'bold' },
+    // donutHole removed
     legendGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 20 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     dot: { width: 8, height: 8, borderRadius: 4 },
@@ -162,5 +190,5 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 18, fontWeight: 'bold', marginVertical: 20 },
     itemRow: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },
     itemName: { marginLeft: 10, fontWeight: '500' },
-    itemPrice: { fontWeight: 'bold', color: THEME_COLOR }
+    itemPrice: { fontWeight: 'bold' }
 });

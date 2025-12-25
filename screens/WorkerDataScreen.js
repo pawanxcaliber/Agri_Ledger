@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, Text, View, FlatList, TouchableOpacity, 
-  Modal, StatusBar, ScrollView, Alert 
+import {
+  StyleSheet, Text, View, FlatList, TouchableOpacity,
+  Modal, StatusBar, ScrollView, Alert
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initDB, getCollection, setCollection, removeFromCollection } from '../services/Database';
 import { Calendar } from 'react-native-calendars';
 import * as Print from 'expo-print';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,21 +13,19 @@ const THEME_COLOR = '#497d59';
 export default function WorkerDataScreen({ navigation }) {
   const [logs, setLogs] = useState([]);
   const [uniqueWorkers, setUniqueWorkers] = useState([]);
-  const [viewMode, setViewMode] = useState('list'); 
-  const [selectedWorker, setSelectedWorker] = useState(null); 
-  const [selectedDateData, setSelectedDateData] = useState(null); 
-  const [showPrintModal, setShowPrintModal] = useState(false); 
+  const [viewMode, setViewMode] = useState('list');
+  const [selectedWorker, setSelectedWorker] = useState(null);
+  const [selectedDateData, setSelectedDateData] = useState(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   useEffect(() => { loadLogs(); }, []);
 
   const loadLogs = async () => {
     try {
-      const stored = await AsyncStorage.getItem('attendanceLogs');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setLogs(parsed);
-        updateUniqueWorkers(parsed);
-      }
+      await initDB();
+      const stored = await getCollection('attendance');
+      setLogs(stored);
+      updateUniqueWorkers(stored);
     } catch (e) { console.error(e); }
   };
 
@@ -39,18 +37,18 @@ export default function WorkerDataScreen({ navigation }) {
   // --- DELETE ALL LOGS FOR A SPECIFIC WORKER ---
   const deleteLogsByWorker = async (workerName) => {
     Alert.alert(
-      "Clear All Records", 
-      `Are you sure you want to delete ALL attendance data for ${workerName}?`, 
+      "Clear All Records",
+      `Are you sure you want to delete ALL attendance data for ${workerName}?`,
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete All", 
-          style: 'destructive', 
+        {
+          text: "Delete All",
+          style: 'destructive',
           onPress: async () => {
             try {
               const updatedLogs = logs.filter(item => item.workerName !== workerName);
               setLogs(updatedLogs);
-              await AsyncStorage.setItem('attendanceLogs', JSON.stringify(updatedLogs));
+              await setCollection('attendance', updatedLogs);
               updateUniqueWorkers(updatedLogs);
               Alert.alert("Deleted", `All records for ${workerName} have been removed.`);
             } catch (e) {
@@ -66,18 +64,19 @@ export default function WorkerDataScreen({ navigation }) {
   const deleteLog = async (logId) => {
     Alert.alert("Delete Record", "Remove this attendance entry?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: 'destructive', onPress: async () => {
-          const updatedLogs = logs.filter(item => item.id !== logId);
+      {
+        text: "Delete", style: 'destructive', onPress: async () => {
+          const updatedLogs = await removeFromCollection('attendance', 'id', logId);
           setLogs(updatedLogs);
-          await AsyncStorage.setItem('attendanceLogs', JSON.stringify(updatedLogs));
           updateUniqueWorkers(updatedLogs);
-          
+
           if (selectedDateData) {
             const updatedDateList = selectedDateData.list.filter(item => item.id !== logId);
             if (updatedDateList.length === 0) setSelectedDateData(null);
             else setSelectedDateData({ ...selectedDateData, list: updatedDateList });
           }
-      }}
+        }
+      }
     ]);
   };
 
@@ -85,7 +84,7 @@ export default function WorkerDataScreen({ navigation }) {
     const marks = {};
     logs.filter(l => l.workerName === workerName).forEach(log => {
       const dateKey = log.date.split('T')[0];
-      const color = log.duration.includes('Full') ? '#d32f2f' : '#fbc02d'; 
+      const color = log.duration.includes('Full') ? '#d32f2f' : '#fbc02d';
       marks[dateKey] = { selected: true, selectedColor: color, marked: true };
     });
     return marks;
@@ -123,12 +122,12 @@ export default function WorkerDataScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
       <View style={styles.header}>
-        <View style={{flexDirection:'row', alignItems:'center', gap:10}}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
           <Text style={styles.headerTitle}>Data View</Text>
         </View>
         <TouchableOpacity onPress={() => setShowPrintModal(true)} style={styles.printBtn}>
-          <Ionicons name="print" size={20} color={THEME_COLOR} /><Text style={{color:THEME_COLOR, fontWeight:'bold', marginLeft:5}}>Print</Text>
+          <Ionicons name="print" size={20} color={THEME_COLOR} /><Text style={{ color: THEME_COLOR, fontWeight: 'bold', marginLeft: 5 }}>Print</Text>
         </TouchableOpacity>
       </View>
 
@@ -138,19 +137,19 @@ export default function WorkerDataScreen({ navigation }) {
       </View>
 
       {viewMode === 'list' ? (
-        <FlatList 
-          data={uniqueWorkers} 
-          contentContainerStyle={{padding:20}} 
+        <FlatList
+          data={uniqueWorkers}
+          contentContainerStyle={{ padding: 20 }}
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <TouchableOpacity style={{flex: 1, flexDirection: 'row', alignItems: 'center'}} onPress={() => setSelectedWorker(item)}>
+              <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => setSelectedWorker(item)}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>{item.charAt(0).toUpperCase()}</Text>
                 </View>
                 <Text style={styles.cardName}>{item}</Text>
               </TouchableOpacity>
-              
-              <View style={{flexDirection: 'row', gap: 20, alignItems: 'center'}}>
+
+              <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
                 <TouchableOpacity onPress={() => setSelectedWorker(item)}>
                   <Ionicons name="calendar-outline" size={24} color={THEME_COLOR} />
                 </TouchableOpacity>
@@ -164,10 +163,10 @@ export default function WorkerDataScreen({ navigation }) {
           ListEmptyComponent={<Text style={styles.emptyText}>No data available yet.</Text>}
         />
       ) : (
-        <Calendar markedDates={getAllMarkedDates()} theme={{todayTextColor: THEME_COLOR}} onDayPress={(day) => {
+        <Calendar markedDates={getAllMarkedDates()} theme={{ todayTextColor: THEME_COLOR }} onDayPress={(day) => {
           const dayLogs = logs.filter(l => l.date.split('T')[0] === day.dateString);
           setSelectedDateData({ date: day.dateString, list: dayLogs });
-        }}/>
+        }} />
       )}
 
       {/* MODAL 1: INDIVIDUAL WORKER CALENDAR */}
@@ -185,7 +184,7 @@ export default function WorkerDataScreen({ navigation }) {
           <Text style={styles.modalTitle}>{selectedDateData?.date}</Text>
           {selectedDateData?.list.map((log, i) => (
             <View key={i} style={styles.logRow}>
-              <View><Text style={{fontWeight:'bold'}}>{log.workerName}</Text><Text>{log.duration}</Text></View>
+              <View><Text style={{ fontWeight: 'bold' }}>{log.workerName}</Text><Text>{log.duration}</Text></View>
               <TouchableOpacity onPress={() => deleteLog(log.id)}><Ionicons name="trash-outline" size={22} color="red" /></TouchableOpacity>
             </View>
           ))}
@@ -198,7 +197,7 @@ export default function WorkerDataScreen({ navigation }) {
         <View style={styles.modalOverlay}><View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Print to Sheet</Text>
           <TouchableOpacity style={styles.opt} onPress={() => printData(null)}><Text>All Workers</Text></TouchableOpacity>
-          <ScrollView style={{maxHeight: 200}}>{uniqueWorkers.map((n, i) => (
+          <ScrollView style={{ maxHeight: 200 }}>{uniqueWorkers.map((n, i) => (
             <TouchableOpacity key={i} style={styles.opt} onPress={() => printData(n)}><Text>{n}</Text></TouchableOpacity>
           ))}</ScrollView>
           <TouchableOpacity onPress={() => setShowPrintModal(false)} style={styles.closeBtn}><Text>Cancel</Text></TouchableOpacity>

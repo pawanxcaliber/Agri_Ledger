@@ -14,8 +14,6 @@ import WorkerDataScreen from './screens/WorkerDataScreen';
 // Payment & Custom Management
 import PaymentScreen from './screens/PaymentScreen';
 import PaymentVisualizationScreen from './screens/PaymentVisualizationScreen';
-import TypeManagementScreen from './screens/TypeManagementScreen';
-import CategoryManagementScreen from './screens/CategoryManagementScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,8 +38,6 @@ export default function App() {
         {/* Payment & Settings */}
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="PaymentVisualization" component={PaymentVisualizationScreen} />
-        <Stack.Screen name="TypeManagement" component={TypeManagementScreen} />
-        <Stack.Screen name="CategoryManagement" component={CategoryManagementScreen} />
 
       </Stack.Navigator>
     </NavigationContainer>

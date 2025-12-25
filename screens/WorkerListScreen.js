@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, Text, View, TouchableOpacity, FlatList, 
-  TextInput, Alert, StatusBar, Modal 
+import {
+  StyleSheet, Text, View, TouchableOpacity, FlatList,
+  TextInput, Alert, StatusBar, Modal
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initDB, getCollection, setCollection } from '../services/Database';
 import { Ionicons } from '@expo/vector-icons';
 
 const THEME_COLOR = '#497d59';
@@ -11,7 +11,7 @@ const THEME_COLOR = '#497d59';
 export default function WorkerListScreen({ navigation }) {
   const [workers, setWorkers] = useState([]);
   const [newName, setNewName] = useState('');
-  
+
   // Edit Mode State
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [currentEditingName, setCurrentEditingName] = useState(''); // The name being edited
@@ -27,8 +27,9 @@ export default function WorkerListScreen({ navigation }) {
 
   const loadWorkers = async () => {
     try {
-      const stored = await AsyncStorage.getItem('workersList');
-      if (stored) setWorkers(JSON.parse(stored));
+      await initDB();
+      const stored = await getCollection('workers');
+      setWorkers(stored);
     } catch (e) { console.error(e); }
   };
 
@@ -41,7 +42,7 @@ export default function WorkerListScreen({ navigation }) {
     }
     const updated = [...workers, newName.trim()];
     setWorkers(updated);
-    await AsyncStorage.setItem('workersList', JSON.stringify(updated));
+    await setCollection('workers', updated);
     setNewName('');
   };
 
@@ -49,11 +50,13 @@ export default function WorkerListScreen({ navigation }) {
   const deleteWorker = async (name) => {
     Alert.alert("Delete Worker", `Remove ${name}?`, [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: 'destructive', onPress: async () => {
+      {
+        text: "Delete", style: 'destructive', onPress: async () => {
           const updated = workers.filter(w => w !== name);
           setWorkers(updated);
-          await AsyncStorage.setItem('workersList', JSON.stringify(updated));
-      }}
+          await setCollection('workers', updated);
+        }
+      }
     ]);
   };
 
@@ -73,20 +76,19 @@ export default function WorkerListScreen({ navigation }) {
     // 1. Update the Worker List
     const updatedWorkers = workers.map(w => w === currentEditingName ? tempEditedName.trim() : w);
     setWorkers(updatedWorkers);
-    await AsyncStorage.setItem('workersList', JSON.stringify(updatedWorkers));
+    await setCollection('workers', updatedWorkers);
 
     // 2. Update all past Attendance Logs for this worker
     try {
-      const storedLogs = await AsyncStorage.getItem('attendanceLogs');
-      if (storedLogs) {
-        let logs = JSON.parse(storedLogs);
+      const logs = await getCollection('attendance');
+      if (logs) {
         const updatedLogs = logs.map(log => {
           if (log.workerName === currentEditingName) {
             return { ...log, workerName: tempEditedName.trim() };
           }
           return log;
         });
-        await AsyncStorage.setItem('attendanceLogs', JSON.stringify(updatedLogs));
+        await setCollection('attendance', updatedLogs);
       }
     } catch (e) {
       console.log("Error updating logs: ", e);
@@ -108,7 +110,7 @@ export default function WorkerListScreen({ navigation }) {
   const deleteSelected = async () => {
     const updated = workers.filter(w => !selectedForDelete.includes(w));
     setWorkers(updated);
-    await AsyncStorage.setItem('workersList', JSON.stringify(updated));
+    await setCollection('workers', updated);
     setSelectedForDelete([]);
     setIsMultiSelectMode(false);
   };
@@ -116,7 +118,7 @@ export default function WorkerListScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -124,16 +126,16 @@ export default function WorkerListScreen({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Workers</Text>
         <TouchableOpacity onPress={() => setIsMultiSelectMode(!isMultiSelectMode)}>
-           <Text style={{color: '#fff', fontWeight: 'bold'}}>
-             {isMultiSelectMode ? "Cancel" : "Select"}
-           </Text>
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+            {isMultiSelectMode ? "Cancel" : "Select"}
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Add Input */}
       <View style={styles.inputContainer}>
-        <TextInput 
-          style={styles.input} 
+        <TextInput
+          style={styles.input}
           placeholder="Enter Worker Name"
           value={newName}
           onChangeText={setNewName}
@@ -144,26 +146,26 @@ export default function WorkerListScreen({ navigation }) {
       </View>
 
       {/* List */}
-      <FlatList 
+      <FlatList
         data={workers}
         keyExtractor={(item) => item}
         renderItem={({ item }) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.item, 
+              styles.item,
               isMultiSelectMode && selectedForDelete.includes(item) && styles.selectedItem
             ]}
             onPress={() => isMultiSelectMode ? toggleSelection(item) : null}
           >
-            <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="person" size={20} color="#666" />
               <Text style={styles.itemText}>{item}</Text>
             </View>
-            
+
             {isMultiSelectMode ? (
-              <Ionicons 
-                name={selectedForDelete.includes(item) ? "checkbox" : "square-outline"} 
-                size={24} color={THEME_COLOR} 
+              <Ionicons
+                name={selectedForDelete.includes(item) ? "checkbox" : "square-outline"}
+                size={24} color={THEME_COLOR}
               />
             ) : (
               <View style={styles.actionButtons}>
@@ -192,17 +194,17 @@ export default function WorkerListScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Worker Name</Text>
-            <TextInput 
-              style={styles.modalInput} 
+            <TextInput
+              style={styles.modalInput}
               value={tempEditedName}
               onChangeText={setTempEditedName}
             />
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setEditModalVisible(false)} style={styles.cancelBtn}>
-                <Text style={{color: '#666'}}>Cancel</Text>
+                <Text style={{ color: '#666' }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={saveEdit} style={styles.saveBtn}>
-                <Text style={{color: '#fff', fontWeight: 'bold'}}>Save</Text>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'red', paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30, elevation: 5
   },
   deleteBtnText: { color: '#fff', fontWeight: 'bold' },
-  
+
   // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#fff', borderRadius: 15, padding: 20 },
