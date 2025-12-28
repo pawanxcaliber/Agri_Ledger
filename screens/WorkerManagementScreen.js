@@ -8,9 +8,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 
-const THEME_COLOR = '#497d59';
+import { useTheme } from '../context/ThemeContext';
 
 export default function WorkerManagementScreen({ navigation }) {
+  const { colors, dark } = useTheme();
+  const THEME_COLOR = colors.primary;
   const isFocused = useIsFocused();
   const [workers, setWorkers] = useState([]);
 
@@ -73,20 +75,20 @@ export default function WorkerManagementScreen({ navigation }) {
   const renderDropdownModal = (visible, setVisible, data, onSelect, title) => (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>{title}</Text>
+        <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
           <FlatList
             data={data}
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={styles.modalItem}
+                style={[styles.modalItem, { borderBottomColor: colors.border }]}
                 onPress={() => { onSelect(item); setVisible(false); }}
               >
-                <Text style={styles.modalItemText}>{item}</Text>
+                <Text style={[styles.modalItemText, { color: colors.text }]}>{item}</Text>
               </TouchableOpacity>
             )}
-            ListEmptyComponent={<Text style={{ padding: 20, textAlign: 'center' }}>No workers found. Please add some first.</Text>}
+            ListEmptyComponent={<Text style={{ padding: 20, textAlign: 'center', color: colors.subText }}>No workers found. Please add some first.</Text>}
           />
           <TouchableOpacity onPress={() => setVisible(false)} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>Cancel</Text>
@@ -97,11 +99,11 @@ export default function WorkerManagementScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -121,7 +123,7 @@ export default function WorkerManagementScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navBtn, { backgroundColor: THEME_COLOR }]}
+            style={[styles.navBtn, { backgroundColor: colors.primary }]}
             onPress={() => navigation.navigate('WorkerData')}
           >
             <Ionicons name="list" size={20} color="#fff" />
@@ -129,27 +131,27 @@ export default function WorkerManagementScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionHeader}>Record Attendance</Text>
+        <Text style={[styles.sectionHeader, { color: colors.text }]}>Record Attendance</Text>
 
         {/* 1. Select Worker */}
-        <Text style={styles.label}>Select Worker</Text>
-        <TouchableOpacity style={styles.inputBox} onPress={() => setShowWorkerModal(true)}>
-          <Text style={styles.inputText}>{selectedWorker || "Select a worker..."}</Text>
-          <Ionicons name="chevron-down" size={20} color="#666" />
+        <Text style={[styles.label, { color: colors.subText }]}>Select Worker</Text>
+        <TouchableOpacity style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setShowWorkerModal(true)}>
+          <Text style={[styles.inputText, { color: selectedWorker ? colors.text : colors.subText }]}>{selectedWorker || "Select a worker..."}</Text>
+          <Ionicons name="chevron-down" size={20} color={colors.subText} />
         </TouchableOpacity>
 
         {/* 2. Select Time */}
-        <Text style={styles.label}>Total Time</Text>
-        <TouchableOpacity style={styles.inputBox} onPress={() => setShowTimeModal(true)}>
-          <Text style={styles.inputText}>{selectedTime}</Text>
-          <Ionicons name="chevron-down" size={20} color="#666" />
+        <Text style={[styles.label, { color: colors.subText }]}>Total Time</Text>
+        <TouchableOpacity style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setShowTimeModal(true)}>
+          <Text style={[styles.inputText, { color: colors.text }]}>{selectedTime}</Text>
+          <Ionicons name="chevron-down" size={20} color={colors.subText} />
         </TouchableOpacity>
 
         {/* 3. Select Date */}
-        <Text style={styles.label}>Date</Text>
-        <TouchableOpacity style={styles.inputBox} onPress={() => setShowDatePicker(true)}>
-          <Text style={styles.inputText}>{date.toDateString()}</Text>
-          <Ionicons name="calendar" size={20} color="#666" />
+        <Text style={[styles.label, { color: colors.subText }]}>Date</Text>
+        <TouchableOpacity style={[styles.inputBox, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setShowDatePicker(true)}>
+          <Text style={[styles.inputText, { color: colors.text }]}>{date.toDateString()}</Text>
+          <Ionicons name="calendar" size={20} color={colors.subText} />
         </TouchableOpacity>
 
         {/* Date Picker Component */}
@@ -163,7 +165,7 @@ export default function WorkerManagementScreen({ navigation }) {
         )}
 
         {/* Submit Button */}
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+        <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary }]} onPress={handleSubmit}>
           <Text style={styles.submitBtnText}>Submit Attendance</Text>
         </TouchableOpacity>
 
@@ -180,7 +182,7 @@ export default function WorkerManagementScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f4f3' },
   header: {
-    backgroundColor: THEME_COLOR,
+    backgroundColor: '#497d59',
     padding: 20, paddingTop: 50,
     flexDirection: 'row', alignItems: 'center', gap: 15,
     borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
@@ -206,7 +208,7 @@ const styles = StyleSheet.create({
   inputText: { fontSize: 16, color: '#333' },
 
   submitBtn: {
-    backgroundColor: THEME_COLOR, padding: 18, borderRadius: 10,
+    backgroundColor: '#497d59', padding: 18, borderRadius: 10,
     alignItems: 'center', marginTop: 40, elevation: 4
   },
   submitBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },

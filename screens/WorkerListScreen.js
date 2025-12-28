@@ -6,9 +6,11 @@ import {
 import { initDB, getCollection, setCollection } from '../services/Database';
 import { Ionicons } from '@expo/vector-icons';
 
-const THEME_COLOR = '#497d59';
+import { useTheme } from '../context/ThemeContext';
 
 export default function WorkerListScreen({ navigation }) {
+  const { colors, dark } = useTheme();
+  const THEME_COLOR = colors.primary;
   const [workers, setWorkers] = useState([]);
   const [newName, setNewName] = useState('');
 
@@ -116,11 +118,11 @@ export default function WorkerListScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -135,12 +137,13 @@ export default function WorkerListScreen({ navigation }) {
       {/* Add Input */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
           placeholder="Enter Worker Name"
+          placeholderTextColor={colors.subText}
           value={newName}
           onChangeText={setNewName}
         />
-        <TouchableOpacity style={styles.addBtn} onPress={addWorker}>
+        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={addWorker}>
           <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -152,14 +155,14 @@ export default function WorkerListScreen({ navigation }) {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[
-              styles.item,
-              isMultiSelectMode && selectedForDelete.includes(item) && styles.selectedItem
+              styles.item, { backgroundColor: colors.card },
+              isMultiSelectMode && selectedForDelete.includes(item) && [styles.selectedItem, { borderColor: colors.primary }]
             ]}
             onPress={() => isMultiSelectMode ? toggleSelection(item) : null}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Ionicons name="person" size={20} color="#666" />
-              <Text style={styles.itemText}>{item}</Text>
+              <Ionicons name="person" size={20} color={colors.subText} />
+              <Text style={[styles.itemText, { color: colors.text }]}>{item}</Text>
             </View>
 
             {isMultiSelectMode ? (
@@ -192,18 +195,18 @@ export default function WorkerListScreen({ navigation }) {
       {/* EDIT MODAL */}
       <Modal visible={editModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Worker Name</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Worker Name</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { color: colors.text, borderColor: colors.border }]}
               value={tempEditedName}
               onChangeText={setTempEditedName}
             />
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setEditModalVisible(false)} style={styles.cancelBtn}>
-                <Text style={{ color: '#666' }}>Cancel</Text>
+                <Text style={{ color: colors.subText }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={saveEdit} style={styles.saveBtn}>
+              <TouchableOpacity onPress={saveEdit} style={[styles.saveBtn, { backgroundColor: colors.primary }]}>
                 <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -218,7 +221,7 @@ export default function WorkerListScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f4f3' },
   header: {
-    backgroundColor: THEME_COLOR, padding: 20, paddingTop: 50,
+    backgroundColor: '#497d59', padding: 20, paddingTop: 50,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderBottomLeftRadius: 20, borderBottomRightRadius: 20, elevation: 4
   },
@@ -228,13 +231,13 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: '#fff', padding: 15, borderRadius: 10, fontSize: 16,
     borderWidth: 1, borderColor: '#ddd'
   },
-  addBtn: { backgroundColor: THEME_COLOR, padding: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { backgroundColor: '#497d59', padding: 15, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   item: {
     backgroundColor: '#fff', padding: 20, marginHorizontal: 20, marginBottom: 10,
     borderRadius: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     elevation: 2
   },
-  selectedItem: { backgroundColor: '#dcedc8', borderColor: THEME_COLOR, borderWidth: 1 },
+  selectedItem: { backgroundColor: '#dcedc8', borderColor: '#497d59', borderWidth: 1 },
   itemText: { fontSize: 16, color: '#333' },
   actionButtons: { flexDirection: 'row', gap: 15 },
   iconBtn: { padding: 5 },
@@ -251,5 +254,5 @@ const styles = StyleSheet.create({
   modalInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, fontSize: 16, marginBottom: 20 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
   cancelBtn: { padding: 10 },
-  saveBtn: { backgroundColor: THEME_COLOR, padding: 10, paddingHorizontal: 20, borderRadius: 8 }
+  saveBtn: { backgroundColor: '#497d59', padding: 10, paddingHorizontal: 20, borderRadius: 8 }
 });

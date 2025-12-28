@@ -1,10 +1,11 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Core Screens
 import HomeScreen from './screens/HomeScreen';
 import WeatherScreen from './screens/WeatherScreen';
+import LoginScreen from './screens/LoginScreen';
 
 // Worker Management
 import WorkerManagementScreen from './screens/WorkerManagementScreen';
@@ -15,18 +16,37 @@ import WorkerDataScreen from './screens/WorkerDataScreen';
 import PaymentScreen from './screens/PaymentScreen';
 import PaymentVisualizationScreen from './screens/PaymentVisualizationScreen';
 
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+function AppNavigator() {
+  const { colors, dark } = useTheme();
+
+  const MyTheme = {
+    ...(dark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(dark ? DarkTheme.colors : DefaultTheme.colors),
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.primary,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={MyTheme}>
       <Stack.Navigator
-        initialRouteName="Home"
+        initialRouteName="Login"
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#f0f4f3' }
+          contentStyle: { backgroundColor: colors.background },
+          animation: 'slide_from_right' // explicit animation
         }}
       >
+        <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Weather" component={WeatherScreen} />
 
@@ -41,5 +61,13 @@ export default function App() {
 
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppNavigator />
+    </ThemeProvider>
   );
 }

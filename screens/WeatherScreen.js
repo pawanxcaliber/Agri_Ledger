@@ -1,20 +1,22 @@
 import React, { useState, useRef } from 'react';
-import { 
-  StyleSheet, Text, View, TextInput, TouchableOpacity, 
-  ActivityIndicator, ScrollView, StatusBar, FlatList, Keyboard 
+import {
+  StyleSheet, Text, View, TextInput, TouchableOpacity,
+  ActivityIndicator, ScrollView, StatusBar, FlatList, Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const THEME_COLOR = '#497d59';
+import { useTheme } from '../context/ThemeContext';
 
 export default function WeatherScreen({ navigation }) {
+  const { colors, dark } = useTheme();
+  const THEME_COLOR = colors.primary;
   const [city, setCity] = useState('');
-  const [suggestions, setSuggestions] = useState([]); 
+  const [suggestions, setSuggestions] = useState([]);
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('future');
-  
+
   const typingTimeout = useRef(null);
 
   const getWeatherIcon = (code) => {
@@ -63,7 +65,7 @@ export default function WeatherScreen({ navigation }) {
   const selectSuggestion = (item) => {
     setCity(`${item.name}, ${item.country}`);
     setSuggestions([]);
-    Keyboard.dismiss(); 
+    Keyboard.dismiss();
     fetchWeather(item);
   };
 
@@ -71,7 +73,7 @@ export default function WeatherScreen({ navigation }) {
     setLoading(true);
     setError(null);
     setWeather(null);
-    setSuggestions([]); 
+    setSuggestions([]);
 
     try {
       let latitude, longitude, name, country;
@@ -97,14 +99,14 @@ export default function WeatherScreen({ navigation }) {
       const response = await fetch(weatherUrl);
       const data = await response.json();
 
-      const currentHourIndex = new Date().getHours() + (7 * 24); 
+      const currentHourIndex = new Date().getHours() + (7 * 24);
       const next24Hours = data.hourly.time
         .slice(currentHourIndex, currentHourIndex + 24)
         .map((time, index) => ({
           time,
           temp: Math.round(data.hourly.temperature_2m[currentHourIndex + index]),
           code: data.hourly.weather_code[currentHourIndex + index],
-          humidity: data.hourly.relative_humidity_2m[currentHourIndex + index] 
+          humidity: data.hourly.relative_humidity_2m[currentHourIndex + index]
         }));
 
       const todayString = new Date().toISOString().split('T')[0];
@@ -115,7 +117,7 @@ export default function WeatherScreen({ navigation }) {
         max: Math.round(data.daily.temperature_2m_max[i]),
         min: Math.round(data.daily.temperature_2m_min[i]),
         code: data.daily.weather_code[i],
-        humidity: Math.round(data.daily.relative_humidity_2m_mean[i]) 
+        humidity: Math.round(data.daily.relative_humidity_2m_mean[i])
       })).reverse();
 
       const futureDaily = data.daily.time.slice(todayIndex).map((time, i) => ({
@@ -123,7 +125,7 @@ export default function WeatherScreen({ navigation }) {
         max: Math.round(data.daily.temperature_2m_max[todayIndex + i]),
         min: Math.round(data.daily.temperature_2m_min[todayIndex + i]),
         code: data.daily.weather_code[todayIndex + i],
-        humidity: Math.round(data.daily.relative_humidity_2m_mean[todayIndex + i]) 
+        humidity: Math.round(data.daily.relative_humidity_2m_mean[todayIndex + i])
       }));
 
       setWeather({
@@ -146,24 +148,24 @@ export default function WeatherScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: THEME_COLOR }]}>
         <View style={styles.headerTopRow}>
-           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-           </TouchableOpacity>
-           <Text style={styles.headerTitle}>Weather Forecast</Text>
-           <View style={{width: 24}} />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Weather Forecast</Text>
+          <View style={{ width: 24 }} />
         </View>
         <View style={styles.searchBlock}>
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, { backgroundColor: dark ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.2)' }]}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: '#fff' }]}
               placeholder="Search City (e.g. Pune)..."
-              placeholderTextColor="#ddd"
+              placeholderTextColor="#eee"
               value={city}
-              onChangeText={handleTextChange} 
+              onChangeText={handleTextChange}
               onSubmitEditing={() => fetchWeather(null)}
             />
             <TouchableOpacity onPress={() => fetchWeather(null)}>
@@ -177,14 +179,14 @@ export default function WeatherScreen({ navigation }) {
                 keyExtractor={(item, index) => index.toString()}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={styles.suggestionItem} 
+                  <TouchableOpacity
+                    style={[styles.suggestionItem, { borderBottomColor: colors.border }]}
                     onPress={() => selectSuggestion(item)}
                   >
-                    <Ionicons name="location-outline" size={20} color="#666" />
-                    <View style={{marginLeft: 10}}>
-                      <Text style={styles.suggestionText}>{item.name}</Text>
-                      <Text style={styles.suggestionSubText}>{item.admin1 ? `${item.admin1}, ` : ''}{item.country}</Text>
+                    <Ionicons name="location-outline" size={20} color={colors.subText} />
+                    <View style={{ marginLeft: 10 }}>
+                      <Text style={[styles.suggestionText, { color: colors.text }]}>{item.name}</Text>
+                      <Text style={[styles.suggestionSubText, { color: colors.subText }]}>{item.admin1 ? `${item.admin1}, ` : ''}{item.country}</Text>
                     </View>
                   </TouchableOpacity>
                 )}
@@ -195,24 +197,24 @@ export default function WeatherScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {loading && <ActivityIndicator size="large" color={THEME_COLOR} style={{marginTop: 50}} />}
+        {loading && <ActivityIndicator size="large" color={THEME_COLOR} style={{ marginTop: 50 }} />}
         {error && <Text style={styles.errorText}>{error}</Text>}
         {weather && !loading && (
           <>
-            <View style={styles.currentCard}>
-              <Text style={styles.cityName}>{`${weather.name}, ${weather.country}`}</Text>
-              <Text style={styles.dateText}>{new Date().toDateString()}</Text>
+            <View style={[styles.currentCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.cityName, { color: colors.text }]}>{`${weather.name}, ${weather.country}`}</Text>
+              <Text style={[styles.dateText, { color: colors.subText }]}>{new Date().toDateString()}</Text>
               <View style={styles.tempContainer}>
-                <Ionicons name={getWeatherIcon(weather.current.code)} size={60} color="#fff" />
-                <Text style={styles.tempText}>{`${weather.current.temp}°`}</Text>
+                <Ionicons name={getWeatherIcon(weather.current.code)} size={60} color={colors.primary} />
+                <Text style={[styles.tempText, { color: colors.text }]}>{`${weather.current.temp}°`}</Text>
               </View>
               <View style={styles.statsRow}>
-                <Text style={styles.stat}>{`💧 ${weather.current.humidity}%`}</Text>
-                <Text style={styles.stat}>{`💨 ${weather.current.wind} km/h`}</Text>
+                <Text style={[styles.stat, { color: colors.subText }]}>{`💧 ${weather.current.humidity}%`}</Text>
+                <Text style={[styles.stat, { color: colors.subText }]}>{`💨 ${weather.current.wind} km/h`}</Text>
               </View>
             </View>
 
-            <Text style={styles.sectionTitle}>Hourly Forecast (24h)</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Hourly Forecast (24h)</Text>
             <FlatList
               horizontal
               data={weather.hourly}
@@ -220,45 +222,45 @@ export default function WeatherScreen({ navigation }) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.hourlyList}
               renderItem={({ item }) => (
-                <View style={styles.hourlyItem}>
-                  <Text style={styles.hourTime}>{formatTime(item.time)}</Text>
+                <View style={[styles.hourlyItem, { backgroundColor: colors.card }]}>
+                  <Text style={[styles.hourTime, { color: colors.subText }]}>{formatTime(item.time)}</Text>
                   <Ionicons name={getWeatherIcon(item.code)} size={24} color={THEME_COLOR} />
-                  <Text style={styles.hourTemp}>{`${item.temp}°`}</Text>
+                  <Text style={[styles.hourTemp, { color: colors.text }]}>{`${item.temp}°`}</Text>
                   <View style={styles.hourlyHumidity}>
-                     <Ionicons name="water" size={10} color="#666" />
-                     <Text style={styles.hourHumidityText}>{`${item.humidity}%`}</Text>
+                    <Ionicons name="water" size={10} color={colors.subText} />
+                    <Text style={[styles.hourHumidityText, { color: colors.subText }]}>{`${item.humidity}%`}</Text>
                   </View>
                 </View>
               )}
             />
 
-            <View style={styles.tabContainer}>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'future' && styles.activeTab]} 
+            <View style={[styles.tabContainer, { backgroundColor: dark ? '#333' : '#e0e0e0' }]}>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'future' && { backgroundColor: colors.card }]}
                 onPress={() => setActiveTab('future')}
               >
-                <Text style={[styles.tabText, activeTab === 'future' && styles.activeTabText]}>Next 7 Days</Text>
+                <Text style={[styles.tabText, { color: colors.subText }, activeTab === 'future' && { color: colors.primary }]}>Next 7 Days</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.tab, activeTab === 'past' && styles.activeTab]} 
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'past' && { backgroundColor: colors.card }]}
                 onPress={() => setActiveTab('past')}
               >
-                <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>Past 7 Days</Text>
+                <Text style={[styles.tabText, { color: colors.subText }, activeTab === 'past' && { color: colors.primary }]}>Past 7 Days</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.dailyList}>
               {(activeTab === 'future' ? weather.dailyFuture : weather.dailyPast).map((day, index) => (
-                <View key={index} style={styles.dailyItem}>
-                  <Text style={styles.dayName}>{formatDate(day.date)}</Text>
+                <View key={index} style={[styles.dailyItem, { backgroundColor: colors.card }]}>
+                  <Text style={[styles.dayName, { color: colors.text }]}>{formatDate(day.date)}</Text>
                   <View style={styles.dayIconRow}>
-                     <Ionicons name={getWeatherIcon(day.code)} size={20} color="#555" />
+                    <Ionicons name={getWeatherIcon(day.code)} size={20} color={colors.text} />
                   </View>
                   <View style={styles.dailyHumidity}>
-                    <Ionicons name="water-outline" size={14} color="#666" />
-                    <Text style={styles.dailyHumidityText}>{`${day.humidity}%`}</Text>
+                    <Ionicons name="water-outline" size={14} color={colors.subText} />
+                    <Text style={[styles.dailyHumidityText, { color: colors.subText }]}>{`${day.humidity}%`}</Text>
                   </View>
-                  <Text style={styles.dayTemp}>{`${day.max}° / ${day.min}°`}</Text>
+                  <Text style={[styles.dayTemp, { color: colors.text }]}>{`${day.max}° / ${day.min}°`}</Text>
                 </View>
               ))}
             </View>
@@ -272,13 +274,12 @@ export default function WeatherScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f4f3' },
   header: {
-    backgroundColor: THEME_COLOR,
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    zIndex: 10, 
+    zIndex: 10,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
   input: { color: '#fff', fontSize: 16, flex: 1, marginRight: 10 },
   suggestionsContainer: {
     position: 'absolute',
-    top: 50, 
+    top: 50,
     left: 0,
     right: 0,
     backgroundColor: '#fff',
@@ -318,8 +319,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 5,
-    shadowOffset: {width: 0, height: 2},
-    maxHeight: 200, 
+    shadowOffset: { width: 0, height: 2 },
+    maxHeight: 200,
     zIndex: 100,
   },
   suggestionItem: {
@@ -334,7 +335,6 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 30, zIndex: 1 },
   errorText: { color: 'red', textAlign: 'center', marginTop: 20 },
   currentCard: {
-    backgroundColor: THEME_COLOR,
     margin: 20,
     padding: 20,
     borderRadius: 20,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginRight: 10,
-    width: 80, 
+    width: 80,
     elevation: 2,
   },
   hourTime: { fontSize: 10, color: '#666', marginBottom: 5 },
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
   activeTab: { backgroundColor: '#fff', elevation: 2 },
   tabText: { color: '#666', fontWeight: '600' },
-  activeTabText: { color: THEME_COLOR },
+  activeTabText: { fontWeight: 'bold' },
   dailyList: { marginHorizontal: 20 },
   dailyItem: {
     flexDirection: 'row',

@@ -8,9 +8,11 @@ import { Calendar } from 'react-native-calendars';
 import * as Print from 'expo-print';
 import { Ionicons } from '@expo/vector-icons';
 
-const THEME_COLOR = '#497d59';
+import { useTheme } from '../context/ThemeContext';
 
 export default function WorkerDataScreen({ navigation }) {
+  const { colors, dark } = useTheme();
+  const THEME_COLOR = colors.primary;
   const [logs, setLogs] = useState([]);
   const [uniqueWorkers, setUniqueWorkers] = useState([]);
   const [viewMode, setViewMode] = useState('list');
@@ -119,9 +121,9 @@ export default function WorkerDataScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: THEME_COLOR }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="#fff" /></TouchableOpacity>
           <Text style={styles.headerTitle}>Data View</Text>
@@ -132,8 +134,8 @@ export default function WorkerDataScreen({ navigation }) {
       </View>
 
       <View style={styles.tabs}>
-        <TouchableOpacity style={[styles.tab, viewMode === 'list' && styles.activeTab]} onPress={() => setViewMode('list')}><Text style={[styles.tabText, viewMode === 'list' && styles.activeTabText]}>By Worker</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, viewMode === 'calendar' && styles.activeTab]} onPress={() => setViewMode('calendar')}><Text style={[styles.tabText, viewMode === 'calendar' && styles.activeTabText]}>Full Calendar</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.tab, { backgroundColor: dark ? colors.card : '#e0e0e0' }, viewMode === 'list' && { backgroundColor: THEME_COLOR }]} onPress={() => setViewMode('list')}><Text style={[styles.tabText, { color: colors.text }, viewMode === 'list' && styles.activeTabText]}>By Worker</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.tab, { backgroundColor: dark ? colors.card : '#e0e0e0' }, viewMode === 'calendar' && { backgroundColor: THEME_COLOR }]} onPress={() => setViewMode('calendar')}><Text style={[styles.tabText, { color: colors.text }, viewMode === 'calendar' && styles.activeTabText]}>Full Calendar</Text></TouchableOpacity>
       </View>
 
       {viewMode === 'list' ? (
@@ -141,12 +143,12 @@ export default function WorkerDataScreen({ navigation }) {
           data={uniqueWorkers}
           contentContainerStyle={{ padding: 20 }}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
               <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => setSelectedWorker(item)}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{item.charAt(0).toUpperCase()}</Text>
+                <View style={[styles.avatar, { backgroundColor: dark ? '#333' : '#e8f5e9' }]}>
+                  <Text style={[styles.avatarText, { color: THEME_COLOR }]}>{item.charAt(0).toUpperCase()}</Text>
                 </View>
-                <Text style={styles.cardName}>{item}</Text>
+                <Text style={[styles.cardName, { color: colors.text }]}>{item}</Text>
               </TouchableOpacity>
 
               <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
@@ -160,13 +162,23 @@ export default function WorkerDataScreen({ navigation }) {
               </View>
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No data available yet.</Text>}
+          ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.subText }]}>No data available yet.</Text>}
         />
       ) : (
-        <Calendar markedDates={getAllMarkedDates()} theme={{ todayTextColor: THEME_COLOR }} onDayPress={(day) => {
-          const dayLogs = logs.filter(l => l.date.split('T')[0] === day.dateString);
-          setSelectedDateData({ date: day.dateString, list: dayLogs });
-        }} />
+        <Calendar
+          markedDates={getAllMarkedDates()}
+          theme={{
+            todayTextColor: THEME_COLOR,
+            calendarBackground: colors.card,
+            textSectionTitleColor: colors.subText,
+            dayTextColor: colors.text,
+            monthTextColor: colors.text,
+            arrowColor: THEME_COLOR
+          }}
+          onDayPress={(day) => {
+            const dayLogs = logs.filter(l => l.date.split('T')[0] === day.dateString);
+            setSelectedDateData({ date: day.dateString, list: dayLogs });
+          }} />
       )}
 
       {/* MODAL 1: INDIVIDUAL WORKER CALENDAR */}
@@ -180,15 +192,15 @@ export default function WorkerDataScreen({ navigation }) {
 
       {/* MODAL 2: DAY DETAILS MODAL WITH DELETE */}
       <Modal visible={!!selectedDateData} transparent animationType="fade">
-        <View style={styles.modalOverlay}><View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>{selectedDateData?.date}</Text>
+        <View style={styles.modalOverlay}><View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>{selectedDateData?.date}</Text>
           {selectedDateData?.list.map((log, i) => (
-            <View key={i} style={styles.logRow}>
-              <View><Text style={{ fontWeight: 'bold' }}>{log.workerName}</Text><Text>{log.duration}</Text></View>
+            <View key={i} style={[styles.logRow, { borderBottomColor: colors.border }]}>
+              <View><Text style={{ fontWeight: 'bold', color: colors.text }}>{log.workerName}</Text><Text style={{ color: colors.subText }}>{log.duration}</Text></View>
               <TouchableOpacity onPress={() => deleteLog(log.id)}><Ionicons name="trash-outline" size={22} color="red" /></TouchableOpacity>
             </View>
           ))}
-          <TouchableOpacity onPress={() => setSelectedDateData(null)} style={styles.closeBtn}><Text>Close</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setSelectedDateData(null)} style={[styles.closeBtn, { backgroundColor: dark ? '#333' : '#eee' }]}><Text style={{ color: colors.text }}>Close</Text></TouchableOpacity>
         </View></View>
       </Modal>
 
@@ -209,17 +221,17 @@ export default function WorkerDataScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f4f3' },
-  header: { backgroundColor: THEME_COLOR, padding: 20, paddingTop: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: { padding: 20, paddingTop: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   printBtn: { backgroundColor: '#fff', flexDirection: 'row', padding: 8, borderRadius: 20, paddingHorizontal: 15 },
   tabs: { flexDirection: 'row', padding: 10, gap: 10 },
   tab: { flex: 1, padding: 12, alignItems: 'center', borderRadius: 8, backgroundColor: '#e0e0e0' },
-  activeTab: { backgroundColor: THEME_COLOR },
+  activeTab: {},
   tabText: { fontWeight: 'bold', color: '#666' },
   activeTabText: { color: '#fff' },
   card: { backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 2 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e8f5e9', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
-  avatarText: { fontWeight: 'bold', color: THEME_COLOR, fontSize: 18 },
+  avatarText: { fontWeight: 'bold', fontSize: 18 },
   cardName: { fontSize: 16, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },

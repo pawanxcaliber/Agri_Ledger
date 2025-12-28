@@ -5,11 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { PieChart } from 'react-native-chart-kit';
 import { useIsFocused } from '@react-navigation/native';
 import { startOfDay, startOfMonth, startOfYear, isWithinInterval, endOfDay, endOfMonth, endOfYear, parseISO } from 'date-fns';
+import { useTheme } from '../context/ThemeContext';
 
-const THEME_COLOR = '#497d59';
 const screenWidth = Dimensions.get('window').width;
 
 export default function PaymentVisualizationScreen({ navigation }) {
+    const { colors, dark } = useTheme();
+    const THEME_COLOR = colors.primary;
     const isFocused = useIsFocused();
     const [allPayments, setAllPayments] = useState([]);
     const [filteredTotal, setFilteredTotal] = useState(0);
@@ -127,10 +129,10 @@ export default function PaymentVisualizationScreen({ navigation }) {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
 
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.primary }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -140,21 +142,21 @@ export default function PaymentVisualizationScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
                 {/* Time Filters */}
-                <View style={styles.filterRow}>
+                <View style={[styles.filterRow, { backgroundColor: dark ? '#333' : '#e0e5e2' }]}>
                     {['Day', 'Month', 'Year'].map(f => (
                         <TouchableOpacity key={f}
-                            style={[styles.filterBtn, timeFilter === f && styles.activeFilter]}
+                            style={[styles.filterBtn, timeFilter === f && [styles.activeFilter, { backgroundColor: colors.primary }]]}
                             onPress={() => setTimeFilter(f)}
                         >
-                            <Text style={[styles.filterText, timeFilter === f && { color: '#fff' }]}>{f}</Text>
+                            <Text style={[styles.filterText, { color: timeFilter === f ? '#fff' : colors.subText }]}>{f}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
 
                 {/* Removed Type Toggle UI */}
 
-                <View style={styles.chartCard}>
-                    <Text style={styles.label}>Total Flow ({timeFilter})</Text>
+                <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.label, { color: colors.subText }]}>Total Flow ({timeFilter})</Text>
                     <Text style={[styles.totalAmt, { color: THEME_COLOR }]}>
                         ₹{filteredTotal.toLocaleString()}
                     </Text>
@@ -184,14 +186,14 @@ export default function PaymentVisualizationScreen({ navigation }) {
                                     absolute
                                 />
                             )
-                        ) : <Text style={{ marginTop: 50, color: '#999' }}>No data found</Text>}
+                        ) : <Text style={{ marginTop: 50, color: colors.subText }}>No data found</Text>}
                     </View>
 
                     <View style={styles.legendGrid}>
                         {chartData.map((item, i) => (
                             <View key={i} style={styles.legendItem}>
                                 <View style={[styles.dot, { backgroundColor: item.color }]} />
-                                <Text style={styles.legendText}>
+                                <Text style={[styles.legendText, { color: colors.text }]}>
                                     {Math.round((item.population / filteredTotal) * 100)}% {item.name}
                                 </Text>
                             </View>
@@ -199,14 +201,14 @@ export default function PaymentVisualizationScreen({ navigation }) {
                     </View>
                 </View>
 
-                <Text style={styles.sectionTitle}>Breakdown</Text>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Breakdown</Text>
                 {chartData.map((item, i) => (
-                    <TouchableOpacity key={i} style={styles.itemRow} onPress={() => handleTypeSelect(item.name)}>
+                    <TouchableOpacity key={i} style={[styles.itemRow, { backgroundColor: colors.card }]} onPress={() => handleTypeSelect(item.name)}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <View style={[styles.dot, { backgroundColor: item.color }]} />
-                            <Text style={styles.itemName}>{item.name}</Text>
+                            <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
                         </View>
-                        <Text style={[styles.itemPrice, { color: '#333' }]}>
+                        <Text style={[styles.itemPrice, { color: colors.text }]}>
                             ₹{item.population.toLocaleString()}
                         </Text>
                     </TouchableOpacity>
@@ -215,7 +217,7 @@ export default function PaymentVisualizationScreen({ navigation }) {
 
             <Modal visible={categoryModalVisible} transparent animationType="slide">
                 <View style={styles.fullModalOverlay}>
-                    <View style={styles.historyContainer}>
+                    <View style={[styles.historyContainer, { backgroundColor: colors.card }]}>
                         <View style={styles.historyHeader}>
                             <Text style={styles.historyTitle}>{selectedType} Breakdown</Text>
                             <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
@@ -224,8 +226,8 @@ export default function PaymentVisualizationScreen({ navigation }) {
                         </View>
 
                         <ScrollView showsVerticalScrollIndicator={false}>
-                            <View style={styles.chartCard}>
-                                <Text style={styles.label}>Total {selectedType} ({timeFilter})</Text>
+                            <View style={[styles.chartCard, { backgroundColor: colors.card }]}>
+                                <Text style={[styles.label, { color: colors.subText }]}>Total {selectedType} ({timeFilter})</Text>
                                 <Text style={[styles.totalAmt, { color: THEME_COLOR }]}>
                                     ₹{selectedTypeTotal.toLocaleString()}
                                 </Text>
@@ -255,22 +257,22 @@ export default function PaymentVisualizationScreen({ navigation }) {
                                                 absolute
                                             />
                                         )
-                                    ) : <Text style={{ marginTop: 50, color: '#999' }}>No data found</Text>}
+                                    ) : <Text style={{ marginTop: 50, color: colors.subText }}>No data found</Text>}
                                 </View>
                             </View>
 
-                            <Text style={styles.sectionTitle}>Categories</Text>
+                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Categories</Text>
                             {categoryChartData.map((item, i) => (
-                                <View key={i} style={styles.itemRow}>
+                                <View key={i} style={[styles.itemRow, { backgroundColor: colors.card }]}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <View style={[styles.dot, { backgroundColor: item.color }]} />
                                         <Text style={styles.itemName}>{item.name}</Text>
                                     </View>
                                     <View>
-                                        <Text style={[styles.itemPrice, { color: '#333', textAlign: 'right' }]}>
+                                        <Text style={[styles.itemPrice, { color: colors.text, textAlign: 'right' }]}>
                                             ₹{item.population.toLocaleString()}
                                         </Text>
-                                        <Text style={{ fontSize: 10, color: '#888', textAlign: 'right' }}>
+                                        <Text style={{ fontSize: 10, color: colors.subText, textAlign: 'right' }}>
                                             {Math.round((item.population / selectedTypeTotal) * 100)}%
                                         </Text>
                                     </View>
@@ -287,14 +289,14 @@ export default function PaymentVisualizationScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f5f7f6' },
-    header: { backgroundColor: THEME_COLOR, padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', gap: 15 },
+    header: { backgroundColor: '#497d59', padding: 20, paddingTop: 50, flexDirection: 'row', alignItems: 'center', gap: 15 },
     headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
     scrollContent: { padding: 20 },
 
     // Filters
     filterRow: { flexDirection: 'row', backgroundColor: '#e0e5e2', borderRadius: 25, padding: 4, marginBottom: 15 },
     filterBtn: { flex: 1, padding: 10, alignItems: 'center', borderRadius: 20 },
-    activeFilter: { backgroundColor: THEME_COLOR },
+    activeFilter: { backgroundColor: '#497d59' },
     filterText: { fontWeight: 'bold', color: '#666' },
 
     // Type Toggle
@@ -322,5 +324,5 @@ const styles = StyleSheet.create({
     fullModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     historyContainer: { backgroundColor: '#fff', height: '80%', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 20 },
     historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    historyTitle: { fontSize: 20, fontWeight: 'bold', color: THEME_COLOR },
+    historyTitle: { fontSize: 20, fontWeight: 'bold', color: '#497d59' },
 });

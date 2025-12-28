@@ -15,10 +15,11 @@ import {
 } from '../services/Database';
 import { useIsFocused, useFocusEffect } from '@react-navigation/native';
 import { isSameDay, isSameMonth, isSameYear, parseISO, format, startOfDay, endOfDay } from 'date-fns';
-
-const THEME_COLOR = '#497d59';
+import { useTheme } from '../context/ThemeContext';
 
 export default function PaymentScreen({ navigation }) {
+    const { colors, dark } = useTheme();
+    const THEME_COLOR = colors.primary;
     const isFocused = useIsFocused();
     const [amount, setAmount] = useState('');
     const [type, setType] = useState('Expense');
@@ -509,11 +510,11 @@ export default function PaymentScreen({ navigation }) {
     );
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <StatusBar backgroundColor={THEME_COLOR} barStyle="light-content" />
 
             {/* HEADER */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: colors.primary }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -533,9 +534,9 @@ export default function PaymentScreen({ navigation }) {
             </View>
 
             <ScrollView contentContainerStyle={styles.form}>
-                <Text style={styles.label}>Amount (₹)</Text>
+                <Text style={[styles.label, { color: colors.subText }]}>Amount (₹)</Text>
                 <TextInput
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
                     keyboardType="numeric"
                     placeholder="0.00"
                     value={amount}
@@ -544,23 +545,23 @@ export default function PaymentScreen({ navigation }) {
 
                 <View style={styles.row}>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.label}>Type</Text>
-                        <TouchableOpacity style={styles.dropdown} onPress={() => setShowTypeModal(true)}>
-                            <Text>{type}</Text>
-                            <Ionicons name="chevron-down" size={18} color="#666" />
+                        <Text style={[styles.label, { color: colors.subText }]}>Type</Text>
+                        <TouchableOpacity style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setShowTypeModal(true)}>
+                            <Text style={{ color: colors.text }}>{type}</Text>
+                            <Ionicons name="chevron-down" size={18} color={colors.subText} />
                         </TouchableOpacity>
                     </View>
                     <View style={{ flex: 1, marginLeft: 15 }}>
-                        <Text style={styles.label}>Category</Text>
-                        <TouchableOpacity style={styles.dropdown} onPress={() => setShowCatModal(true)}>
-                            <Text>{category}</Text>
-                            <Ionicons name="chevron-down" size={18} color="#666" />
+                        <Text style={[styles.label, { color: colors.subText }]}>Category</Text>
+                        <TouchableOpacity style={[styles.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => setShowCatModal(true)}>
+                            <Text style={{ color: colors.text }}>{category}</Text>
+                            <Ionicons name="chevron-down" size={18} color={colors.subText} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* DATE OF TRANSACTION SECTION */}
-                <Text style={styles.label}>Date of Transaction</Text>
+                <Text style={[styles.label, { color: colors.subText }]}>Date of Transaction</Text>
                 <View style={styles.dateSection}>
                     <View style={styles.radioGroup}>
                         <TouchableOpacity
@@ -583,19 +584,19 @@ export default function PaymentScreen({ navigation }) {
                     {dateMode === 'manual' && (
                         <View style={styles.manualDateContainer}>
                             <TouchableOpacity
-                                style={styles.dateDisplayBtn}
+                                style={[styles.dateDisplayBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                                 onPress={() => setShowDatePicker(true)}
                             >
                                 <Ionicons name="calendar-outline" size={20} color={THEME_COLOR} />
-                                <Text style={styles.dateDisplayText}>{format(manualDate, 'dd MMM yyyy')}</Text>
+                                <Text style={[styles.dateDisplayText, { color: colors.text }]}>{format(manualDate, 'dd MMM yyyy')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={styles.dateDisplayBtn}
+                                style={[styles.dateDisplayBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
                                 onPress={() => setShowTimePicker(true)}
                             >
                                 <Ionicons name="time-outline" size={20} color={THEME_COLOR} />
-                                <Text style={styles.dateDisplayText}>{format(manualDate, 'hh:mm a')}</Text>
+                                <Text style={[styles.dateDisplayText, { color: colors.text }]}>{format(manualDate, 'hh:mm a')}</Text>
                             </TouchableOpacity>
 
                             {/* PICKERS */}
@@ -641,21 +642,21 @@ export default function PaymentScreen({ navigation }) {
                     )}
                 </View>
 
-                <Text style={styles.label}>Proof / Attachments</Text>
+                <Text style={[styles.label, { color: colors.subText }]}>Proof / Attachments</Text>
                 <View style={styles.mediaRow}>
-                    <TouchableOpacity style={styles.mediaBtn} onPress={async () => {
+                    <TouchableOpacity style={[styles.mediaBtn, { backgroundColor: colors.card }]} onPress={async () => {
                         let res = await ImagePicker.launchCameraAsync({ quality: 0.5 });
                         if (!res.canceled) setImages([...images, res.assets[0].uri]);
-                    }}><Ionicons name="camera" size={24} color={THEME_COLOR} /><Text style={styles.mediaText}>Camera</Text></TouchableOpacity>
+                    }}><Ionicons name="camera" size={24} color={THEME_COLOR} /><Text style={[styles.mediaText, { color: colors.subText }]}>Camera</Text></TouchableOpacity>
 
-                    <TouchableOpacity style={styles.mediaBtn} onPress={async () => {
+                    <TouchableOpacity style={[styles.mediaBtn, { backgroundColor: colors.card }]} onPress={async () => {
                         let res = await ImagePicker.launchImageLibraryAsync({ quality: 0.5 });
                         if (!res.canceled) setImages([...images, res.assets[0].uri]);
-                    }}><Ionicons name="image" size={24} color={THEME_COLOR} /><Text style={styles.mediaText}>Gallery</Text></TouchableOpacity>
+                    }}><Ionicons name="image" size={24} color={THEME_COLOR} /><Text style={[styles.mediaText, { color: colors.subText }]}>Gallery</Text></TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.mediaBtn, recording && { backgroundColor: '#ffebee' }]} onPress={handleToggleRecording}>
+                    <TouchableOpacity style={[styles.mediaBtn, { backgroundColor: recording ? '#ffebee' : colors.card }]} onPress={handleToggleRecording}>
                         <Ionicons name={recording ? "stop-circle" : "mic"} size={24} color={recording ? "red" : THEME_COLOR} />
-                        <Text style={styles.mediaText}>{recording ? "Stop" : "Voice"}</Text>
+                        <Text style={[styles.mediaText, { color: colors.subText }]}>{recording ? "Stop" : "Voice"}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -736,7 +737,7 @@ export default function PaymentScreen({ navigation }) {
                         </TouchableOpacity>
                     </View>
                 ) : (
-                    <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                    <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary }]} onPress={handleSubmit}>
                         <Text style={styles.submitText}>Save Transaction</Text>
                     </TouchableOpacity>
                 )}
@@ -745,7 +746,7 @@ export default function PaymentScreen({ navigation }) {
             {/* --- TRANSACTION HISTORY MODAL --- */}
             < Modal visible={showHistoryModal} transparent animationType="slide" >
                 <View style={styles.fullModalOverlay}>
-                    <View style={styles.historyContainer}>
+                    <View style={[styles.historyContainer, { backgroundColor: colors.card }]}>
                         <View style={styles.historyHeader}>
                             <Text style={styles.historyTitle}>Transaction History</Text>
                             <TouchableOpacity onPress={() => setShowHistoryModal(false)}>
@@ -754,14 +755,14 @@ export default function PaymentScreen({ navigation }) {
                         </View>
 
                         {/* Filter Tabs */}
-                        <View style={styles.filterRow}>
+                        <View style={[styles.filterRow, { backgroundColor: dark ? '#333' : '#eee' }]}>
                             {['Day', 'Month', 'Year'].map(f => (
                                 <TouchableOpacity
                                     key={f}
-                                    style={[styles.filterTab, historyFilter === f && styles.activeFilterTab]}
+                                    style={[styles.filterTab, historyFilter === f && [styles.activeFilterTab, { backgroundColor: colors.primary }]]}
                                     onPress={() => setHistoryFilter(f)}
                                 >
-                                    <Text style={[styles.filterText, historyFilter === f && { color: '#fff' }]}>{f}</Text>
+                                    <Text style={[styles.filterText, { color: historyFilter === f ? '#fff' : colors.subText }]}>{f}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -771,7 +772,7 @@ export default function PaymentScreen({ navigation }) {
                             keyExtractor={(item) => item.id}
                             renderItem={({ item }) => (
                                 <TouchableOpacity
-                                    style={styles.historyItem}
+                                    style={[styles.historyItem, { backgroundColor: dark ? '#2c2c2c' : '#f9f9f9' }]}
                                     onPress={() => {
                                         setSelectedTransaction(item);
                                         // Removed auto-play logic
@@ -779,8 +780,8 @@ export default function PaymentScreen({ navigation }) {
                                     }}
                                 >
                                     <View style={{ flex: 1 }}>
-                                        <Text style={styles.histCat}>{item.category} ({item.type})</Text>
-                                        <Text style={styles.histDate}>{format(parseISO(item.date), 'MMM dd, yyyy HH:mm')}</Text>
+                                        <Text style={[styles.histCat, { color: colors.text }]}>{item.category} ({item.type})</Text>
+                                        <Text style={[styles.histDate, { color: colors.subText }]}>{format(parseISO(item.date), 'MMM dd, yyyy HH:mm')}</Text>
                                     </View>
                                     <Text style={[styles.histAmt, { color: THEME_COLOR }]}>₹{item.amount}</Text>
                                     <TouchableOpacity onPress={() => deleteTransaction(item.id)} style={{ marginLeft: 15, padding: 5 }}>
@@ -796,11 +797,11 @@ export default function PaymentScreen({ navigation }) {
 
             {/* --- TYPE MANAGEMENT MODAL --- */}
             < Modal visible={showTypeModal} transparent animationType="fade" >
-                <View style={styles.modalOverlay}><View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Select Type</Text>
+                <View style={styles.modalOverlay}><View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.modalTitle, { color: THEME_COLOR }]}>Select Type</Text>
                     <View style={styles.manageRow}>
-                        <TextInput style={styles.manageInput} placeholder="New Type..." value={newTypeInput} onChangeText={setNewTypeInput} />
-                        <TouchableOpacity style={styles.addBtn} onPress={addType}><Ionicons name="add" size={24} color="#fff" /></TouchableOpacity>
+                        <TextInput style={[styles.manageInput, { backgroundColor: dark ? '#333' : '#f0f0f0', color: colors.text, borderColor: colors.border }]} placeholder="New Type..." placeholderTextColor={colors.subText} value={newTypeInput} onChangeText={setNewTypeInput} />
+                        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={addType}><Ionicons name="add" size={24} color="#fff" /></TouchableOpacity>
                     </View>
                     <FlatList data={typeList} renderItem={({ item }) => {
                         const isEditing = editingType === item;
@@ -809,7 +810,7 @@ export default function PaymentScreen({ navigation }) {
                                 {isEditing ? (
                                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                                         <TextInput
-                                            style={[styles.manageInput, { marginRight: 10 }]}
+                                            style={[styles.manageInput, { marginRight: 10, backgroundColor: dark ? '#333' : '#f0f0f0', color: colors.text }]}
                                             value={tempTypeInput}
                                             onChangeText={setTempTypeInput}
                                             autoFocus
@@ -824,7 +825,7 @@ export default function PaymentScreen({ navigation }) {
                                 ) : (
                                     <>
                                         <TouchableOpacity style={styles.modalSelect} onPress={() => { setType(item); setShowTypeModal(false); }}>
-                                            <Text style={styles.modalSelectText}>{item}</Text>
+                                            <Text style={[styles.modalSelectText, { color: colors.text }]}>{item}</Text>
                                         </TouchableOpacity>
 
                                         {/* Action Buttons */}
@@ -847,11 +848,11 @@ export default function PaymentScreen({ navigation }) {
 
             {/* --- CATEGORY MANAGEMENT MODAL --- */}
             < Modal visible={showCatModal} transparent animationType="fade" >
-                <View style={styles.modalOverlay}><View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Select Category</Text>
+                <View style={styles.modalOverlay}><View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.modalTitle, { color: THEME_COLOR }]}>Select Category</Text>
                     <View style={styles.manageRow}>
-                        <TextInput style={styles.manageInput} placeholder="New Category..." value={newCatInput} onChangeText={setNewCatInput} />
-                        <TouchableOpacity style={styles.addBtn} onPress={addCategory}><Ionicons name="add" size={24} color="#fff" /></TouchableOpacity>
+                        <TextInput style={[styles.manageInput, { backgroundColor: dark ? '#333' : '#f0f0f0', color: colors.text, borderColor: colors.border }]} placeholder="New Category..." placeholderTextColor={colors.subText} value={newCatInput} onChangeText={setNewCatInput} />
+                        <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.primary }]} onPress={addCategory}><Ionicons name="add" size={24} color="#fff" /></TouchableOpacity>
                     </View>
                     <FlatList data={categoryList} renderItem={({ item }) => {
                         const isEditing = editingCat === item;
@@ -860,7 +861,7 @@ export default function PaymentScreen({ navigation }) {
                                 {isEditing ? (
                                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                                         <TextInput
-                                            style={[styles.manageInput, { marginRight: 10 }]}
+                                            style={[styles.manageInput, { marginRight: 10, backgroundColor: dark ? '#333' : '#f0f0f0', color: colors.text }]}
                                             value={tempCatInput}
                                             onChangeText={setTempCatInput}
                                             autoFocus
@@ -875,7 +876,7 @@ export default function PaymentScreen({ navigation }) {
                                 ) : (
                                     <>
                                         <TouchableOpacity style={styles.modalSelect} onPress={() => { setCategory(item); setShowCatModal(false); }}>
-                                            <Text style={styles.modalSelectText}>{item}</Text>
+                                            <Text style={[styles.modalSelectText, { color: colors.text }]}>{item}</Text>
                                         </TouchableOpacity>
                                         <View style={{ flexDirection: 'row' }}>
                                             <TouchableOpacity onPress={() => startEditCategory(item)} style={{ padding: 10 }}>
@@ -897,7 +898,7 @@ export default function PaymentScreen({ navigation }) {
             {/* --- DETAILS MODAL --- */}
             < Modal visible={detailsModalVisible} transparent animationType="slide" >
                 <View style={styles.fullModalOverlay}>
-                    <View style={styles.historyContainer}>
+                    <View style={[styles.historyContainer, { backgroundColor: colors.card }]}>
                         <View style={styles.historyHeader}>
                             <Text style={styles.historyTitle}>Transaction Details</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -913,27 +914,27 @@ export default function PaymentScreen({ navigation }) {
                         {selectedTransaction && (
                             <ScrollView showsVerticalScrollIndicator={false}>
                                 <Text style={{ fontSize: 12, color: '#aaa', marginBottom: 5 }}>ID: {selectedTransaction.id}</Text>
-                                <Text style={styles.detailLabel}>Amount</Text>
+                                <Text style={[styles.detailLabel, { color: colors.subText }]}>Amount</Text>
                                 <Text style={styles.detailAmount}>₹{selectedTransaction.amount}</Text>
 
                                 <View style={styles.detailRow}>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={styles.detailLabel}>Type</Text>
-                                        <Text style={styles.detailValue}>{selectedTransaction.type}</Text>
+                                        <Text style={[styles.detailLabel, { color: colors.subText }]}>Type</Text>
+                                        <Text style={[styles.detailValue, { color: colors.text }]}>{selectedTransaction.type}</Text>
                                     </View>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={styles.detailLabel}>Category</Text>
-                                        <Text style={styles.detailValue}>{selectedTransaction.category}</Text>
+                                        <Text style={[styles.detailLabel, { color: colors.subText }]}>Category</Text>
+                                        <Text style={[styles.detailValue, { color: colors.text }]}>{selectedTransaction.category}</Text>
                                     </View>
                                 </View>
 
-                                <Text style={styles.detailLabel}>Date</Text>
-                                <Text style={styles.detailValue}>{format(parseISO(selectedTransaction.date), 'MMMM dd, yyyy HH:mm')}</Text>
+                                <Text style={[styles.detailLabel, { color: colors.subText }]}>Date</Text>
+                                <Text style={[styles.detailValue, { color: colors.text }]}>{format(parseISO(selectedTransaction.date), 'MMMM dd, yyyy HH:mm')}</Text>
 
                                 {/* Images Section */}
                                 {(selectedTransaction.images?.length > 0 || selectedTransaction.image) && (
                                     <View style={{ marginTop: 20 }}>
-                                        <Text style={styles.detailLabel}>Attachments</Text>
+                                        <Text style={[styles.detailLabel, { color: colors.subText }]}>Attachments</Text>
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
                                             {/* Legacy Single Image */}
                                             {selectedTransaction.image && !selectedTransaction.images && (
@@ -950,11 +951,11 @@ export default function PaymentScreen({ navigation }) {
                                 {/* Audio Section */}
                                 {(selectedTransaction.audioUris?.length > 0 || selectedTransaction.audioUri) && (
                                     <View style={{ marginTop: 20 }}>
-                                        <Text style={styles.detailLabel}>Voice Notes</Text>
+                                        <Text style={[styles.detailLabel, { color: colors.subText }]}>Voice Notes</Text>
 
                                         {/* Legacy Single Audio */}
                                         {selectedTransaction.audioUri && !selectedTransaction.audioUris && (
-                                            <View style={styles.playerCard}>
+                                            <View style={[styles.playerCard, { backgroundColor: dark ? '#333' : '#f5f5f5' }]}>
                                                 <TouchableOpacity onPress={togglePlayback}>
                                                     <Ionicons name={isPlaying ? "pause-circle" : "play-circle"} size={50} color={THEME_COLOR} />
                                                 </TouchableOpacity>
@@ -977,11 +978,11 @@ export default function PaymentScreen({ navigation }) {
                                         {selectedTransaction.audioUris?.map((uri, index) => {
                                             const isActive = currentUri === uri;
                                             return (
-                                                <View key={index} style={[styles.audioPreviewCard, { backgroundColor: '#f5f5f5', borderWidth: 0 }]}>
+                                                <View key={index} style={[styles.audioPreviewCard, { backgroundColor: dark ? '#333' : '#f5f5f5', borderWidth: 0 }]}>
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                                             <Ionicons name="mic-circle" size={32} color={THEME_COLOR} />
-                                                            <Text style={{ color: '#333', fontWeight: 'bold' }}>Voice Note {index + 1}</Text>
+                                                            <Text style={{ color: colors.text, fontWeight: 'bold' }}>Voice Note {index + 1}</Text>
                                                         </View>
                                                     </View>
 
@@ -1005,11 +1006,11 @@ export default function PaymentScreen({ navigation }) {
                                                         </View>
                                                     ) : (
                                                         <TouchableOpacity
-                                                            style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', padding: 10, borderRadius: 8 }}
+                                                            style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: dark ? '#444' : '#e0e0e0', padding: 10, borderRadius: 8 }}
                                                             onPress={() => loadSound(uri)}
                                                         >
                                                             <Ionicons name="play" size={20} color={THEME_COLOR} />
-                                                            <Text style={{ marginLeft: 10, color: '#333' }}>Play Audio</Text>
+                                                            <Text style={{ marginLeft: 10, color: colors.text }}>Play Audio</Text>
                                                         </TouchableOpacity>
                                                     )}
                                                 </View>
@@ -1026,17 +1027,17 @@ export default function PaymentScreen({ navigation }) {
             {/* Print Selection Modal */}
             <Modal visible={printModalVisible} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <Text style={styles.modalTitle}>Print Report</Text>
+                            <Text style={[styles.modalTitle, { color: THEME_COLOR }]}>Print Report</Text>
                             <TouchableOpacity onPress={() => setPrintModalVisible(false)} style={{ padding: 5 }}>
                                 <Ionicons name="close" size={24} color="#666" />
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={styles.label}>Start Date</Text>
-                        <TouchableOpacity style={[styles.inputBox, { marginBottom: 15 }]} onPress={() => setShowStartPicker(true)}>
-                            <Text style={styles.inputText}>{format(printStartDate, 'dd/MM/yyyy')}</Text>
+                        <Text style={[styles.label, { color: colors.subText }]}>Start Date</Text>
+                        <TouchableOpacity style={[styles.inputBox, { marginBottom: 15, backgroundColor: dark ? '#333' : '#fff', borderColor: colors.border }]} onPress={() => setShowStartPicker(true)}>
+                            <Text style={[styles.inputText, { color: colors.text }]}>{format(printStartDate, 'dd/MM/yyyy')}</Text>
                             <Ionicons name="calendar-outline" size={20} color={THEME_COLOR} />
                         </TouchableOpacity>
                         {showStartPicker && (
@@ -1048,9 +1049,9 @@ export default function PaymentScreen({ navigation }) {
                             />
                         )}
 
-                        <Text style={styles.label}>End Date</Text>
-                        <TouchableOpacity style={[styles.inputBox, { marginBottom: 25 }]} onPress={() => setShowEndPicker(true)}>
-                            <Text style={styles.inputText}>{format(printEndDate, 'dd/MM/yyyy')}</Text>
+                        <Text style={[styles.label, { color: colors.subText }]}>End Date</Text>
+                        <TouchableOpacity style={[styles.inputBox, { marginBottom: 25, backgroundColor: dark ? '#333' : '#fff', borderColor: colors.border }]} onPress={() => setShowEndPicker(true)}>
+                            <Text style={[styles.inputText, { color: colors.text }]}>{format(printEndDate, 'dd/MM/yyyy')}</Text>
                             <Ionicons name="calendar-outline" size={20} color={THEME_COLOR} />
                         </TouchableOpacity>
                         {showEndPicker && (
@@ -1062,7 +1063,7 @@ export default function PaymentScreen({ navigation }) {
                             />
                         )}
 
-                        <TouchableOpacity style={styles.printModalBtn} onPress={handlePrint}>
+                        <TouchableOpacity style={[styles.printModalBtn, { backgroundColor: colors.primary }]} onPress={handlePrint}>
                             <Ionicons name="print" size={20} color="#fff" style={{ marginRight: 10 }} />
                             <Text style={styles.submitText}>Print Now</Text>
                         </TouchableOpacity>
@@ -1082,7 +1083,7 @@ const formatTime = (millis) => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f0f4f3' },
-    header: { backgroundColor: THEME_COLOR, padding: 20, paddingTop: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    header: { backgroundColor: '#497d59', padding: 20, paddingTop: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
     headerIcons: { flexDirection: 'row', gap: 15 },
     form: { padding: 20 },
@@ -1100,16 +1101,16 @@ const styles = StyleSheet.create({
     mediaBtn: { flex: 1, backgroundColor: '#fff', padding: 15, borderRadius: 10, alignItems: 'center', marginHorizontal: 5, elevation: 2 },
     mediaText: { fontSize: 12, marginTop: 5 },
     previewImage: { width: '100%', height: 200, borderRadius: 10, marginTop: 15 },
-    audioNote: { color: THEME_COLOR, marginTop: 10, fontWeight: 'bold', textAlign: 'center' },
-    submitBtn: { backgroundColor: THEME_COLOR, padding: 18, borderRadius: 10, alignItems: 'center', marginTop: 30 },
-    printModalBtn: { backgroundColor: THEME_COLOR, padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 15, flexDirection: 'row', justifyContent: 'center' },
+    audioNote: { color: '#497d59', marginTop: 10, fontWeight: 'bold', textAlign: 'center' },
+    submitBtn: { backgroundColor: '#497d59', padding: 18, borderRadius: 10, alignItems: 'center', marginTop: 30 },
+    printModalBtn: { backgroundColor: '#497d59', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 15, flexDirection: 'row', justifyContent: 'center' },
     submitText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 
     // History Modal Styles
     fullModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
     historyContainer: { backgroundColor: '#fff', height: '80%', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 20 },
     historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    historyTitle: { fontSize: 20, fontWeight: 'bold', color: THEME_COLOR },
+    historyTitle: { fontSize: 20, fontWeight: 'bold', color: '#497d59' },
     historyItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9f9f9', padding: 15, borderRadius: 12, marginBottom: 10 },
     histCat: { fontSize: 16, fontWeight: 'bold', color: '#333' },
     histDate: { fontSize: 12, color: '#888' },
@@ -1119,16 +1120,16 @@ const styles = StyleSheet.create({
     // Filter Styles
     filterRow: { flexDirection: 'row', backgroundColor: '#eee', borderRadius: 20, padding: 4, marginBottom: 15 },
     filterTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 16 },
-    activeFilterTab: { backgroundColor: THEME_COLOR },
+    activeFilterTab: { backgroundColor: '#497d59' },
     filterText: { fontWeight: 'bold', color: '#666', fontSize: 13 },
 
     // Selection Modals
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 40 },
     modalContent: { backgroundColor: '#fff', borderRadius: 15, padding: 20, maxHeight: '60%' },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', color: THEME_COLOR, marginBottom: 15, textAlign: 'center' },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#497d59', marginBottom: 15, textAlign: 'center' },
     modalSelect: { flex: 1, paddingVertical: 15 },
     modalSelectText: { fontSize: 16, color: '#333' },
-    addBtn: { backgroundColor: THEME_COLOR, width: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
+    addBtn: { backgroundColor: '#497d59', width: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
     manageRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
     manageInput: { flex: 1, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 12, fontSize: 16 },
     itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
@@ -1159,12 +1160,12 @@ const styles = StyleSheet.create({
     // Inline Management Styles
     manageRow: { flexDirection: 'row', marginBottom: 15, gap: 10 },
     manageInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, backgroundColor: '#f9f9f9' },
-    addBtn: { backgroundColor: THEME_COLOR, padding: 10, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+    addBtn: { backgroundColor: '#497d59', padding: 10, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
     itemRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
 
     // Details Styles
     detailLabel: { fontSize: 13, color: '#888', marginTop: 15, fontWeight: 'bold' },
-    detailAmount: { fontSize: 36, fontWeight: 'bold', color: THEME_COLOR, marginBottom: 10 },
+    detailAmount: { fontSize: 36, fontWeight: 'bold', color: '#497d59', marginBottom: 10 },
     detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 10 },
     detailValue: { fontSize: 18, color: '#333', fontWeight: '500' },
     detailImage: { width: '100%', height: 300, borderRadius: 15, marginTop: 10, backgroundColor: '#eee' },
