@@ -41,7 +41,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleImport = async () => {
-    Alert.alert("Import Backup", "This will overwrite ALL current data and media. Continue?", [
+    Alert.alert("Import Backup", "This will MERGE the backup with your current data. Duplicates will be skipped and existing entries preserved. Continue?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Import", onPress: async () => {
@@ -51,7 +51,7 @@ export default function HomeScreen({ navigation }) {
             const success = await importFullBackup();
             setIsLoading(false);
             if (success) {
-              Alert.alert("Success", "Backup restored successfully. The app will now reload.", [
+              Alert.alert("Success", "Backup merged successfully. The app will now reload.", [
                 { text: "OK", onPress: async () => { await Updates.reloadAsync(); } }
               ]);
             } else {

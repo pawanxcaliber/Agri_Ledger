@@ -912,6 +912,7 @@ export default function PaymentScreen({ navigation }) {
 
                         {selectedTransaction && (
                             <ScrollView showsVerticalScrollIndicator={false}>
+                                <Text style={{ fontSize: 12, color: '#aaa', marginBottom: 5 }}>ID: {selectedTransaction.id}</Text>
                                 <Text style={styles.detailLabel}>Amount</Text>
                                 <Text style={styles.detailAmount}>₹{selectedTransaction.amount}</Text>
 
