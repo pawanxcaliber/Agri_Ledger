@@ -24,6 +24,12 @@ export default function PaymentScreen({ navigation }) {
     const [type, setType] = useState('Expense');
     const [category, setCategory] = useState('Seeds');
 
+    // Date Selection State
+    const [dateMode, setDateMode] = useState('current'); // 'current' | 'manual'
+    const [manualDate, setManualDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
+
     // Dynamic lists defaults
     const [typeList, setTypeList] = useState(['Income', 'Expense']);
     const [categoryList, setCategoryList] = useState(['Seeds', 'Fertilizer', 'Labor', 'Equipment']);
@@ -379,7 +385,7 @@ export default function PaymentScreen({ navigation }) {
             type, category,
             image: savedImage, // relative path
             audioUri: savedAudio, // relative path
-            date: new Date().toISOString(),
+            date: dateMode === 'manual' ? manualDate.toISOString() : new Date().toISOString(),
         };
 
         try {
@@ -473,6 +479,88 @@ export default function PaymentScreen({ navigation }) {
                             <Ionicons name="chevron-down" size={18} color="#666" />
                         </TouchableOpacity>
                     </View>
+                </View>
+
+                {/* DATE OF TRANSACTION SECTION */}
+                <Text style={styles.label}>Date of Transaction</Text>
+                <View style={styles.dateSection}>
+                    <View style={styles.radioGroup}>
+                        <TouchableOpacity
+                            style={[styles.radioBtn, dateMode === 'current' && styles.radioBtnActive]}
+                            onPress={() => setDateMode('current')}
+                        >
+                            <Ionicons name={dateMode === 'current' ? "radio-button-on" : "radio-button-off"} size={20} color={dateMode === 'current' ? THEME_COLOR : '#666'} />
+                            <Text style={[styles.radioText, dateMode === 'current' && { color: THEME_COLOR }]}>Now</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.radioBtn, dateMode === 'manual' && styles.radioBtnActive]}
+                            onPress={() => setDateMode('manual')}
+                        >
+                            <Ionicons name={dateMode === 'manual' ? "radio-button-on" : "radio-button-off"} size={20} color={dateMode === 'manual' ? THEME_COLOR : '#666'} />
+                            <Text style={[styles.radioText, dateMode === 'manual' && { color: THEME_COLOR }]}>Select Date</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {dateMode === 'manual' && (
+                        <View style={styles.manualDateContainer}>
+                            <TouchableOpacity
+                                style={styles.dateDisplayBtn}
+                                onPress={() => setShowDatePicker(true)}
+                            >
+                                <Ionicons name="calendar-outline" size={20} color={THEME_COLOR} />
+                                <Text style={styles.dateDisplayText}>{format(manualDate, 'dd MMM yyyy')}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.dateDisplayBtn}
+                                onPress={() => setShowTimePicker(true)}
+                            >
+                                <Ionicons name="time-outline" size={20} color={THEME_COLOR} />
+                                <Text style={styles.dateDisplayText}>{format(manualDate, 'hh:mm a')}</Text>
+                            </TouchableOpacity>
+
+                            {/* PICKERS */}
+                            {showDatePicker && (
+                                <DateTimePicker
+                                    value={manualDate}
+                                    mode="date"
+                                    display="default"
+                                    onChange={(event, selectedDate) => {
+                                        setShowDatePicker(false);
+                                        if (selectedDate) {
+                                            // Keep existing time, update date
+                                            const newDate = new Date(manualDate);
+                                            newDate.setFullYear(selectedDate.getFullYear());
+                                            newDate.setMonth(selectedDate.getMonth());
+                                            newDate.setDate(selectedDate.getDate());
+                                            setManualDate(newDate);
+                                            // On Android, consider auto-opening time picker here if desired
+                                            // setShowTimePicker(true); 
+                                        }
+                                    }}
+                                />
+                            )}
+
+                            {showTimePicker && (
+                                <DateTimePicker
+                                    value={manualDate}
+                                    mode="time"
+                                    display="default"
+                                    onChange={(event, selectedDate) => {
+                                        setShowTimePicker(false);
+                                        if (selectedDate) {
+                                            // Keep existing date, update time
+                                            const newDate = new Date(manualDate);
+                                            newDate.setHours(selectedDate.getHours());
+                                            newDate.setMinutes(selectedDate.getMinutes());
+                                            setManualDate(newDate);
+                                        }
+                                    }}
+                                />
+                            )}
+                        </View>
+                    )}
                 </View>
 
                 <Text style={styles.label}>Proof / Attachments</Text>
@@ -892,7 +980,33 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 18, fontWeight: 'bold', color: THEME_COLOR, marginBottom: 15, textAlign: 'center' },
     modalSelect: { flex: 1, paddingVertical: 15 },
     modalSelectText: { fontSize: 16, color: '#333' },
-    cancelText: { color: 'red', textAlign: 'center', marginTop: 15, fontWeight: 'bold', padding: 10 },
+    addBtn: { backgroundColor: THEME_COLOR, width: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
+    manageRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
+    manageInput: { flex: 1, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 12, fontSize: 16 },
+    itemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
+    modalSelect: { flex: 1 },
+    modalSelectText: { fontSize: 16, color: '#333' },
+    cancelText: { textAlign: 'center', marginTop: 15, color: '#666', fontWeight: 'bold' },
+
+    // Date Picker Styles
+    dateSection: { marginBottom: 20 },
+    radioGroup: { flexDirection: 'row', gap: 20, marginBottom: 15 },
+    radioBtn: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    radioBtnActive: { opacity: 1 },
+    radioText: { fontSize: 16, color: '#666' },
+    manualDateContainer: { flexDirection: 'row', gap: 15 },
+    dateDisplayBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        padding: 12,
+        borderRadius: 8
+    },
+    dateDisplayText: { color: '#333', fontSize: 14, fontWeight: '500' },
 
     // Inline Management Styles
     manageRow: { flexDirection: 'row', marginBottom: 15, gap: 10 },

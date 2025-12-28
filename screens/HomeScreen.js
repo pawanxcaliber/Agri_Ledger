@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Dimensions, Modal, Alert, Animated } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Dimensions, Modal, Alert, Animated, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { exportDB, importDB } from '../services/Database';
+import { exportFullBackup, importFullBackup } from '../services/Database';
 import * as Updates from 'expo-updates';
 
 const THEME_COLOR = '#497d59';
@@ -10,6 +10,7 @@ const DRAWER_WIDTH = width * 0.75;
 
 export default function HomeScreen({ navigation }) {
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // For showing spinner during zip/unzip
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
 
   const openMenu = () => {
@@ -29,21 +30,38 @@ export default function HomeScreen({ navigation }) {
     }).start(() => setMenuVisible(false));
   };
 
+  const handleExport = async () => {
+    setIsLoading(true);
+    // Give UI a moment to render spinner
+    setTimeout(async () => {
+      await exportFullBackup();
+      setIsLoading(false);
+      closeMenu();
+    }, 100);
+  };
+
   const handleImport = async () => {
-    Alert.alert("Import Data", "This will overwrite your current data. Continue?", [
+    Alert.alert("Import Backup", "This will overwrite ALL current data and media. Continue?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Import", onPress: async () => {
-          const success = await importDB();
-          if (success) {
-            Alert.alert("Success", "Data imported successfully. The app will now reload.", [
-              { text: "OK", onPress: async () => { await Updates.reloadAsync(); } }
-            ]);
-          }
+          setIsLoading(true);
+          // Give UI a moment
+          setTimeout(async () => {
+            const success = await importFullBackup();
+            setIsLoading(false);
+            if (success) {
+              Alert.alert("Success", "Backup restored successfully. The app will now reload.", [
+                { text: "OK", onPress: async () => { await Updates.reloadAsync(); } }
+              ]);
+            } else {
+              // Alert already handled in Database.js usually, but safety check
+            }
+            closeMenu();
+          }, 100);
         }
       }
     ]);
-    closeMenu();
   };
 
   const handleDriveBind = () => {
@@ -124,7 +142,7 @@ export default function HomeScreen({ navigation }) {
             <ScrollView style={styles.menuItems}>
               <Text style={styles.menuSectionLabel}>Data Management</Text>
 
-              <TouchableOpacity style={styles.menuItem} onPress={() => { exportDB(); closeMenu(); }}>
+              <TouchableOpacity style={styles.menuItem} onPress={handleExport}>
                 <Ionicons name="share-social-outline" size={24} color="#333" />
                 <Text style={styles.menuItemText}>Export / Backup Data</Text>
               </TouchableOpacity>
@@ -153,6 +171,16 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity style={{ flex: 1 }} onPress={closeMenu} />
         </View>
       </Modal>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color={THEME_COLOR} />
+            <Text style={{ marginTop: 10, fontWeight: 'bold' }}>Processing Backup...</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -182,5 +210,8 @@ const styles = StyleSheet.create({
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 15, paddingVertical: 15 },
   menuItemText: { fontSize: 16, color: '#333', fontWeight: '500' },
   divider: { height: 1, backgroundColor: '#eee', marginVertical: 10 },
-  closeMenuBtn: { backgroundColor: '#333', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, gap: 10 }
+  closeMenuBtn: { backgroundColor: '#333', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, gap: 10 },
+
+  loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  loadingBox: { backgroundColor: '#fff', padding: 20, borderRadius: 10, alignItems: 'center', elevation: 5 }
 });
