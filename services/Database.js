@@ -115,9 +115,22 @@ export const saveMedia = async (uri) => {
 
         const filename = sourceUri.split('/').pop();
         const newPath = MEDIA_DIR + filename;
+
+        // CHECK: If source and destination are the same, just return the relative path
+        // This handles the "Edit" case where we re-save existing media
+        // Normalize paths for comparison (remove file:// prefix for consistency check if needed, but usually URI includes it)
+        if (sourceUri === newPath || sourceUri === 'file://' + newPath) {
+            return 'media/' + filename;
+        }
+
         await FileSystem.copyAsync({ from: sourceUri, to: newPath });
         return 'media/' + filename; // Return relative path
     } catch (e) {
+        // If error is "same file", ignore it and return success
+        if (e.message.includes("are the same")) {
+            const filename = uri.split('/').pop();
+            return 'media/' + filename;
+        }
         console.error("Media Save Error:", e);
         return null; // Fail gracefully
     }

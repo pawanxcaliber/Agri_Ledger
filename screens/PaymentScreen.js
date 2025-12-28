@@ -10,7 +10,7 @@ import { Audio } from 'expo-av';
 import * as Print from 'expo-print';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
-    initDB, getCollection, setCollection, addToCollection,
+    initDB, getCollection, setCollection, addToCollection, updateInCollection,
     removeFromCollection, saveMedia, getMediaUri, exportDB
 } from '../services/Database';
 import { useIsFocused, useFocusEffect } from '@react-navigation/native';
@@ -34,8 +34,9 @@ export default function PaymentScreen({ navigation }) {
     const [typeList, setTypeList] = useState(['Income', 'Expense']);
     const [categoryList, setCategoryList] = useState(['Seeds', 'Fertilizer', 'Labor', 'Equipment']);
 
-    const [image, setImage] = useState(null);
-    const [audioUri, setAudioUri] = useState(null);
+    const [images, setImages] = useState([]); // Array of URIs
+    const [audioUris, setAudioUris] = useState([]); // Array of URIs
+    const [editingId, setEditingId] = useState(null); // ID of transaction being edited
 
     // Modal States
     const [showTypeModal, setShowTypeModal] = useState(false);
@@ -62,7 +63,9 @@ export default function PaymentScreen({ navigation }) {
     const [detailsModalVisible, setDetailsModalVisible] = useState(false);
 
     // Player State
+    // Player State
     const [sound, setSound] = useState();
+    const [currentUri, setCurrentUri] = useState(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [position, setPosition] = useState(0);
     const [duration, setDuration] = useState(1); // avoid /0
@@ -277,7 +280,11 @@ export default function PaymentScreen({ navigation }) {
 
     const loadSound = async (pathOrUri) => {
         try {
-            if (sound) await sound.unloadAsync();
+            if (sound) {
+                await sound.unloadAsync();
+                setSound(null);
+                setCurrentUri(null);
+            }
 
             // Check if it's already a full URI (file://, content://, etc) or a relative path or absolute path
             const uri = (pathOrUri.startsWith('file:') || pathOrUri.startsWith('content:') || pathOrUri.startsWith('http') || pathOrUri.startsWith('/'))
@@ -286,13 +293,14 @@ export default function PaymentScreen({ navigation }) {
 
             const { sound: newSound, status } = await Audio.Sound.createAsync(
                 { uri },
-                { shouldPlay: false }
+                { shouldPlay: true }
             );
 
             setSound(newSound);
+            setCurrentUri(pathOrUri);
             setDuration(status.durationMillis || 1);
             setPosition(0);
-            setIsPlaying(false);
+            setIsPlaying(true);
 
             newSound.setOnPlaybackStatusUpdate(status => {
                 if (status.isLoaded) {
@@ -302,12 +310,17 @@ export default function PaymentScreen({ navigation }) {
                     if (status.didJustFinish) {
                         setIsPlaying(false);
                         setPosition(0);
+                        // Optional: keep player open or close it. Keeping open is fine.
                     }
                 }
             });
         } catch (error) {
             console.log('Error loading sound', error);
-            Alert.alert("Error", "Could not load audio");
+            if (error.message && (error.message.includes('ENOENT') || error.message.includes('file not found'))) {
+                Alert.alert("Error", "Audio file not found. It may have been deleted.");
+            } else {
+                Alert.alert("Error", "Could not load audio.");
+            }
         }
     };
 
@@ -347,10 +360,8 @@ export default function PaymentScreen({ navigation }) {
                 // Stop Recording
                 await recording.stopAndUnloadAsync();
                 const uri = recording.getURI();
-                setAudioUri(uri);
+                setAudioUris([...audioUris, uri]); // Append to list
                 setRecording(undefined);
-                // Auto-load for preview
-                await loadSound(uri);
             } else {
                 // Start Recording
                 const { status } = await Audio.requestPermissionsAsync();
@@ -375,28 +386,95 @@ export default function PaymentScreen({ navigation }) {
     const handleSubmit = async () => {
         if (!amount || isNaN(parseFloat(amount))) return Alert.alert("Error", "Enter valid amount");
 
-        // Save Media
-        const savedImage = await saveMedia(image);
-        const savedAudio = await saveMedia(audioUri);
+        // Save All Media
+        const savedImages = [];
+        for (const img of images) {
+            const saved = await saveMedia(img);
+            if (saved) savedImages.push(saved);
+        }
+
+        const savedAudios = [];
+        for (const aud of audioUris) {
+            const saved = await saveMedia(aud);
+            if (saved) savedAudios.push(saved);
+        }
 
         const paymentData = {
-            id: Date.now().toString(),
             amount: parseFloat(amount),
             type, category,
-            image: savedImage, // relative path
-            audioUri: savedAudio, // relative path
+            images: savedImages, // Array of relative paths
+            audioUris: savedAudios, // Array of relative paths
             date: dateMode === 'manual' ? manualDate.toISOString() : new Date().toISOString(),
         };
 
         try {
-            await addToCollection('payments', paymentData);
+            if (editingId) {
+                // UPDATE EXISTING
+                await updateInCollection('payments', 'id', editingId, paymentData);
+                Alert.alert("Success", "Transaction Updated!");
+                setEditingId(null);
+            } else {
+                // CREATE NEW
+                paymentData.id = Date.now().toString();
+                await addToCollection('payments', paymentData);
+                Alert.alert("Success", "Saved!");
+            }
 
-            Alert.alert("Success", "Saved!");
+            // Reset Form (Wait a bit if editing to avoid jar)
             setAmount('');
-            setImage(null);
-            setAudioUri(null);
+            setImages([]);
+            setAudioUris([]);
+            setDateMode('current');
+            setManualDate(new Date());
             loadHistory();
         } catch (e) { Alert.alert("Error", "Save failed"); }
+    };
+
+    const startEditing = (item) => {
+        setDetailsModalVisible(false);
+        setShowHistoryModal(false);
+        setEditingId(item.id);
+        setAmount(item.amount.toString());
+        setType(item.type);
+        setCategory(item.category);
+
+        // Handle Legacy Media (single string to array)
+        let loadedImages = item.images || [];
+        if (!item.images && item.image) loadedImages = [item.image];
+        // Convert relative paths back to full URIs for display/editing if needed? 
+        // Logic: The saveMedia checks if it exists. For display we need full URI.
+        // But for re-saving, we just want to keep them. 
+        // Easier approach: Convert ALL to full URIs for state, then re-save them (idempotent-ish) or check if they are already relative.
+        // Actually saveMedia handles "file://" check. If it's already relative (e.g. "media/xyz.jpg"), getMediaUri makes it absolute.
+        // So we should map them to absolute for the state.
+        setImages(loadedImages.map(img => getMediaUri(img)));
+
+        let loadedAudios = item.audioUris || [];
+        if (!item.audioUris && item.audioUri) loadedAudios = [item.audioUri];
+        setAudioUris(loadedAudios.map(aud => getMediaUri(aud)));
+
+        // Date
+        const d = parseISO(item.date);
+        setManualDate(d);
+        setDateMode('manual');
+
+        // Scroll to top (need ref ideally, but user will see changes)
+    };
+
+    const cancelEditing = () => {
+        setEditingId(null);
+        setAmount('');
+        setImages([]);
+        setAudioUris([]);
+        setDateMode('current');
+    };
+
+    const removeImage = (index) => {
+        setImages(images.filter((_, i) => i !== index));
+    };
+
+    const removeAudio = (index) => {
+        setAudioUris(audioUris.filter((_, i) => i !== index));
     };
 
     // --- History Filtering ---
@@ -567,12 +645,12 @@ export default function PaymentScreen({ navigation }) {
                 <View style={styles.mediaRow}>
                     <TouchableOpacity style={styles.mediaBtn} onPress={async () => {
                         let res = await ImagePicker.launchCameraAsync({ quality: 0.5 });
-                        if (!res.canceled) setImage(res.assets[0].uri);
+                        if (!res.canceled) setImages([...images, res.assets[0].uri]);
                     }}><Ionicons name="camera" size={24} color={THEME_COLOR} /><Text style={styles.mediaText}>Camera</Text></TouchableOpacity>
 
                     <TouchableOpacity style={styles.mediaBtn} onPress={async () => {
                         let res = await ImagePicker.launchImageLibraryAsync({ quality: 0.5 });
-                        if (!res.canceled) setImage(res.assets[0].uri);
+                        if (!res.canceled) setImages([...images, res.assets[0].uri]);
                     }}><Ionicons name="image" size={24} color={THEME_COLOR} /><Text style={styles.mediaText}>Gallery</Text></TouchableOpacity>
 
                     <TouchableOpacity style={[styles.mediaBtn, recording && { backgroundColor: '#ffebee' }]} onPress={handleToggleRecording}>
@@ -581,65 +659,87 @@ export default function PaymentScreen({ navigation }) {
                     </TouchableOpacity>
                 </View>
 
-
-
                 {/* Previews */}
                 <View style={{ gap: 10, marginTop: 15 }}>
-                    {image && (
-                        <View>
-                            <Image source={{ uri: image }} style={styles.previewImage} />
-                            <TouchableOpacity style={styles.deleteBadge} onPress={() => setImage(null)}>
-                                <Ionicons name="close" size={20} color="#fff" />
-                            </TouchableOpacity>
-                        </View>
+                    {/* Images Horizontal Scroll */}
+                    {images.length > 0 && (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                            {images.map((img, index) => (
+                                <View key={index} style={{ marginRight: 10 }}>
+                                    <Image source={{ uri: img }} style={styles.previewImageThumb} />
+                                    <TouchableOpacity style={styles.deleteBadgeSmall} onPress={() => removeImage(index)}>
+                                        <Ionicons name="close" size={16} color="#fff" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </ScrollView>
                     )}
 
-                    {audioUri && (
-                        <View style={styles.audioPreviewCard}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                    <Ionicons name="mic-circle" size={32} color={THEME_COLOR} />
-                                    <Text style={{ color: '#333', fontWeight: 'bold' }}>Voice Note Recorded</Text>
-                                </View>
-                                <TouchableOpacity onPress={() => { setAudioUri(null); setSound(null); }}>
-                                    <Ionicons name="trash-outline" size={24} color="red" />
-                                </TouchableOpacity>
-                            </View>
-
-                            <View style={styles.playerCard}>
-                                <TouchableOpacity onPress={togglePlayback}>
-                                    <Ionicons
-                                        name={isPlaying ? "pause-circle" : "play-circle"}
-                                        size={45}
-                                        color={THEME_COLOR}
-                                    />
-                                </TouchableOpacity>
-
-                                <View style={{ flex: 1, marginHorizontal: 10 }}>
-                                    <Slider
-                                        style={{ width: '100%', height: 40 }}
-                                        minimumValue={0}
-                                        maximumValue={duration}
-                                        value={position}
-                                        onSlidingStart={() => setIsSeeking(true)}
-                                        onSlidingComplete={handleSeek}
-                                        minimumTrackTintColor={THEME_COLOR}
-                                        maximumTrackTintColor="#ccc"
-                                        thumbTintColor={THEME_COLOR}
-                                    />
-                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                        <Text style={styles.timeText}>{formatTime(position)}</Text>
-                                        <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                    {/* Audio List */}
+                    {audioUris.map((uri, index) => {
+                        const isActive = currentUri === uri;
+                        return (
+                            <View key={index} style={styles.audioPreviewCard}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <Ionicons name="mic-circle" size={32} color={THEME_COLOR} />
+                                        <Text style={{ color: '#333', fontWeight: 'bold' }}>Voice Note {index + 1}</Text>
                                     </View>
+
+                                    {/* Delete Button always visible */}
+                                    <TouchableOpacity onPress={() => removeAudio(index)}>
+                                        <Ionicons name="trash-outline" size={24} color="red" />
+                                    </TouchableOpacity>
                                 </View>
+
+                                {/* Inline Player if Active */}
+                                {isActive ? (
+                                    <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
+                                        <TouchableOpacity onPress={togglePlayback}>
+                                            <Ionicons name={isPlaying ? "pause-circle" : "play-circle"} size={40} color={THEME_COLOR} />
+                                        </TouchableOpacity>
+                                        <View style={{ flex: 1, marginHorizontal: 10 }}>
+                                            <Slider
+                                                style={{ width: '100%', height: 40 }}
+                                                minimumValue={0} maximumValue={duration} value={position}
+                                                onSlidingStart={() => setIsSeeking(true)} onSlidingComplete={handleSeek}
+                                                minimumTrackTintColor={THEME_COLOR} maximumTrackTintColor="#ccc" thumbTintColor={THEME_COLOR}
+                                            />
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                <Text style={styles.timeText}>{formatTime(position)}</Text>
+                                                <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                ) : (
+                                    /* Play Button if not active */
+                                    <TouchableOpacity
+                                        style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', padding: 10, borderRadius: 8 }}
+                                        onPress={() => loadSound(uri)}
+                                    >
+                                        <Ionicons name="play" size={20} color={THEME_COLOR} />
+                                        <Text style={{ marginLeft: 10, color: '#333' }}>Play Audio</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
-                        </View>
-                    )}
+                        );
+                    })}
                 </View>
 
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-                    <Text style={styles.submitText}>Save Transaction</Text>
-                </TouchableOpacity>
+                {editingId ? (
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 30 }}>
+                        <TouchableOpacity style={[styles.submitBtn, { flex: 1, marginTop: 0, backgroundColor: '#666' }]} onPress={cancelEditing}>
+                            <Text style={styles.submitText}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.submitBtn, { flex: 1, marginTop: 0 }]} onPress={handleSubmit}>
+                            <Text style={styles.submitText}>Update</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                        <Text style={styles.submitText}>Save Transaction</Text>
+                    </TouchableOpacity>
+                )}
             </ScrollView >
 
             {/* --- TRANSACTION HISTORY MODAL --- */}
@@ -674,8 +774,7 @@ export default function PaymentScreen({ navigation }) {
                                     style={styles.historyItem}
                                     onPress={() => {
                                         setSelectedTransaction(item);
-                                        // Load sound immediately if exists
-                                        if (item.audioUri) loadSound(item.audioUri);
+                                        // Removed auto-play logic
                                         setDetailsModalVisible(true);
                                     }}
                                 >
@@ -801,9 +900,14 @@ export default function PaymentScreen({ navigation }) {
                     <View style={styles.historyContainer}>
                         <View style={styles.historyHeader}>
                             <Text style={styles.historyTitle}>Transaction Details</Text>
-                            <TouchableOpacity onPress={() => setDetailsModalVisible(false)}>
-                                <Ionicons name="close-circle" size={30} color="#666" />
-                            </TouchableOpacity>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <TouchableOpacity onPress={() => startEditing(selectedTransaction)} style={{ marginRight: 20 }}>
+                                    <Ionicons name="create-outline" size={28} color={THEME_COLOR} />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => setDetailsModalVisible(false)}>
+                                    <Ionicons name="close-circle" size={30} color="#666" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
 
                         {selectedTransaction && (
@@ -825,48 +929,91 @@ export default function PaymentScreen({ navigation }) {
                                 <Text style={styles.detailLabel}>Date</Text>
                                 <Text style={styles.detailValue}>{format(parseISO(selectedTransaction.date), 'MMMM dd, yyyy HH:mm')}</Text>
 
-                                {selectedTransaction.image && (
+                                {/* Images Section */}
+                                {(selectedTransaction.images?.length > 0 || selectedTransaction.image) && (
                                     <View style={{ marginTop: 20 }}>
-                                        <Text style={styles.detailLabel}>Attachment</Text>
-                                        <Image
-                                            source={{ uri: getMediaUri(selectedTransaction.image) }}
-                                            style={styles.detailImage}
-                                            resizeMode="cover"
-                                        />
+                                        <Text style={styles.detailLabel}>Attachments</Text>
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+                                            {/* Legacy Single Image */}
+                                            {selectedTransaction.image && !selectedTransaction.images && (
+                                                <Image source={{ uri: getMediaUri(selectedTransaction.image) }} style={[styles.detailImage, { width: 300, height: 300, marginRight: 10 }]} />
+                                            )}
+                                            {/* Array Images */}
+                                            {selectedTransaction.images?.map((img, i) => (
+                                                <Image key={i} source={{ uri: getMediaUri(img) }} style={[styles.detailImage, { width: 300, height: 300, marginRight: 10 }]} />
+                                            ))}
+                                        </ScrollView>
                                     </View>
                                 )}
 
-                                {selectedTransaction.audioUri && (
+                                {/* Audio Section */}
+                                {(selectedTransaction.audioUris?.length > 0 || selectedTransaction.audioUri) && (
                                     <View style={{ marginTop: 20 }}>
-                                        <Text style={styles.detailLabel}>Voice Note</Text>
+                                        <Text style={styles.detailLabel}>Voice Notes</Text>
 
-                                        <View style={styles.playerCard}>
-                                            <TouchableOpacity onPress={togglePlayback}>
-                                                <Ionicons
-                                                    name={isPlaying ? "pause-circle" : "play-circle"}
-                                                    size={50}
-                                                    color={THEME_COLOR}
-                                                />
-                                            </TouchableOpacity>
-
-                                            <View style={{ flex: 1, marginHorizontal: 10 }}>
-                                                <Slider
-                                                    style={{ width: '100%', height: 40 }}
-                                                    minimumValue={0}
-                                                    maximumValue={duration}
-                                                    value={position}
-                                                    onSlidingStart={() => setIsSeeking(true)}
-                                                    onSlidingComplete={handleSeek}
-                                                    minimumTrackTintColor={THEME_COLOR}
-                                                    maximumTrackTintColor="#ccc"
-                                                    thumbTintColor={THEME_COLOR}
-                                                />
-                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                                    <Text style={styles.timeText}>{formatTime(position)}</Text>
-                                                    <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                                        {/* Legacy Single Audio */}
+                                        {selectedTransaction.audioUri && !selectedTransaction.audioUris && (
+                                            <View style={styles.playerCard}>
+                                                <TouchableOpacity onPress={togglePlayback}>
+                                                    <Ionicons name={isPlaying ? "pause-circle" : "play-circle"} size={50} color={THEME_COLOR} />
+                                                </TouchableOpacity>
+                                                <View style={{ flex: 1, marginHorizontal: 10 }}>
+                                                    <Slider
+                                                        style={{ width: '100%', height: 40 }}
+                                                        minimumValue={0} maximumValue={duration} value={position}
+                                                        onSlidingStart={() => setIsSeeking(true)} onSlidingComplete={handleSeek}
+                                                        minimumTrackTintColor={THEME_COLOR} maximumTrackTintColor="#ccc" thumbTintColor={THEME_COLOR}
+                                                    />
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                        <Text style={styles.timeText}>{formatTime(position)}</Text>
+                                                        <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                                                    </View>
                                                 </View>
                                             </View>
-                                        </View>
+                                        )}
+
+                                        {/* Array Audios */}
+                                        {selectedTransaction.audioUris?.map((uri, index) => {
+                                            const isActive = currentUri === uri;
+                                            return (
+                                                <View key={index} style={[styles.audioPreviewCard, { backgroundColor: '#f5f5f5', borderWidth: 0 }]}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                                            <Ionicons name="mic-circle" size={32} color={THEME_COLOR} />
+                                                            <Text style={{ color: '#333', fontWeight: 'bold' }}>Voice Note {index + 1}</Text>
+                                                        </View>
+                                                    </View>
+
+                                                    {isActive ? (
+                                                        <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
+                                                            <TouchableOpacity onPress={togglePlayback}>
+                                                                <Ionicons name={isPlaying ? "pause-circle" : "play-circle"} size={40} color={THEME_COLOR} />
+                                                            </TouchableOpacity>
+                                                            <View style={{ flex: 1, marginHorizontal: 10 }}>
+                                                                <Slider
+                                                                    style={{ width: '100%', height: 40 }}
+                                                                    minimumValue={0} maximumValue={duration} value={position}
+                                                                    onSlidingStart={() => setIsSeeking(true)} onSlidingComplete={handleSeek}
+                                                                    minimumTrackTintColor={THEME_COLOR} maximumTrackTintColor="#ccc" thumbTintColor={THEME_COLOR}
+                                                                />
+                                                                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                                    <Text style={styles.timeText}>{formatTime(position)}</Text>
+                                                                    <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                                                                </View>
+                                                            </View>
+                                                        </View>
+                                                    ) : (
+                                                        <TouchableOpacity
+                                                            style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', padding: 10, borderRadius: 8 }}
+                                                            onPress={() => loadSound(uri)}
+                                                        >
+                                                            <Ionicons name="play" size={20} color={THEME_COLOR} />
+                                                            <Text style={{ marginLeft: 10, color: '#333' }}>Play Audio</Text>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                </View>
+                                            );
+                                        })}
                                     </View>
                                 )}
                                 <View style={{ height: 50 }} />
@@ -1026,6 +1173,9 @@ const styles = StyleSheet.create({
     timeText: { fontSize: 12, color: '#888' },
 
     // Previews
+    // Previews
     deleteBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, padding: 5 },
+    deleteBadgeSmall: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 15, padding: 4 },
+    previewImageThumb: { width: 100, height: 100, borderRadius: 10 },
     audioPreviewCard: { backgroundColor: '#fff', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#eee', marginTop: 10 }
 });
