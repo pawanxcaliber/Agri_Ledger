@@ -128,7 +128,7 @@ export default function LoginScreen({ navigation }) {
                             <Text style={[styles.keyText, { color: colors.text }]}>{num}</Text>
                         </TouchableOpacity>
                     ))}
-                    <View style={styles.key} />
+                    <View style={[styles.key, { backgroundColor: 'transparent', elevation: 0 }]} />
                     <TouchableOpacity style={[styles.key, { backgroundColor: colors.card }]} onPress={() => handlePress(0)}>
                         <Text style={[styles.keyText, { color: colors.text }]}>0</Text>
                     </TouchableOpacity>

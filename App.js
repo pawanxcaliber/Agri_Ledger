@@ -43,7 +43,8 @@ function AppNavigator() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
-          animation: 'slide_from_right' // explicit animation
+          animation: 'slide_from_right',
+          animationDuration: 50, // Even faster
         }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />

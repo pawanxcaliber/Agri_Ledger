@@ -90,8 +90,18 @@ export default function WorkerManagementScreen({ navigation }) {
             )}
             ListEmptyComponent={<Text style={{ padding: 20, textAlign: 'center', color: colors.subText }}>No workers found. Please add some first.</Text>}
           />
-          <TouchableOpacity onPress={() => setVisible(false)} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>Cancel</Text>
+          <TouchableOpacity
+            style={{
+              marginTop: 15,
+              padding: 12,
+              alignItems: 'center',
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.border
+            }}
+            onPress={() => setVisible(false)}
+          >
+            <Text style={{ color: colors.text, fontWeight: '600' }}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -218,6 +228,5 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
   modalItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee' },
   modalItemText: { fontSize: 16 },
-  closeButton: { marginTop: 15, padding: 15, alignItems: 'center' },
-  closeButtonText: { color: 'red', fontWeight: 'bold' }
+  modalItemText: { fontSize: 16 },
 });
