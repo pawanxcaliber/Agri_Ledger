@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Dimensions, Modal, Alert, Animated, ActivityIndicator, TextInput, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { exportFullBackup, importFullBackup } from '../services/Database';
+import { exportFullBackup, importFullBackup, saveBackupToDevice } from '../services/Database';
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
@@ -24,6 +24,8 @@ export default function HomeScreen({ navigation }) {
   const [pwdStage, setPwdStage] = useState('OLD'); // OLD, NEW
   const [pwdInput, setPwdInput] = useState('');
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+
   // Theme Slider State
   const [hue, setHue] = useState(145); // Default approx Green
   const [sat, setSat] = useState(50);
@@ -101,13 +103,33 @@ export default function HomeScreen({ navigation }) {
     }).start(() => setMenuVisible(false));
   };
 
-  const handleExport = async () => {
+  const handleExportMenuPress = () => {
+    closeMenu();
+    // Small delay to let menu close before showing modal
+    setTimeout(() => {
+      setShowExportModal(true);
+    }, 300);
+  };
+
+  const handleShareBackup = async () => {
+    setShowExportModal(false);
     setIsLoading(true);
-    // Give UI a moment to render spinner
     setTimeout(async () => {
       await exportFullBackup();
       setIsLoading(false);
-      closeMenu();
+    }, 100);
+  };
+
+  const handleSaveToDevice = async () => {
+    setShowExportModal(false);
+    setIsLoading(true);
+    // Give UI a moment
+    setTimeout(async () => {
+      const success = await saveBackupToDevice();
+      setIsLoading(false);
+      if (success) {
+        Alert.alert("Success", "Backup saved to your device successfully.");
+      }
     }, 100);
   };
 
@@ -213,7 +235,7 @@ export default function HomeScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.menuItemsContent} style={styles.menuItems}>
               <Text style={styles.menuSectionLabel}>Data Management</Text>
 
-              <TouchableOpacity style={styles.menuItem} onPress={handleExport}>
+              <TouchableOpacity style={styles.menuItem} onPress={handleExportMenuPress}>
                 <Ionicons name="share-social-outline" size={24} color={colors.text} />
                 <Text style={[styles.menuItemText, { color: colors.text }]}>Export / Backup Data</Text>
               </TouchableOpacity>
@@ -419,6 +441,69 @@ export default function HomeScreen({ navigation }) {
                 <Text style={{ color: '#fff', fontWeight: 'bold' }}>
                   {pwdStage === 'OLD' ? 'Next' : 'Save'}
                 </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* EXPORT OPTIONS MODAL */}
+      <Modal visible={showExportModal} transparent animationType="fade" onRequestClose={() => setShowExportModal(false)}>
+        <View style={styles.centeredOverlay}>
+          <View style={{ backgroundColor: colors.card, width: '80%', padding: 25, borderRadius: 20, alignItems: 'center', elevation: 5 }}>
+            <Ionicons name="cloud-download-outline" size={40} color={colors.primary} style={{ marginBottom: 15 }} />
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: colors.text }}>
+              Export Backup
+            </Text>
+            <Text style={{ fontSize: 14, color: colors.subText, textAlign: 'center', marginBottom: 25 }}>
+              Choose how you want to save your backup file.
+            </Text>
+
+            <View style={{ width: '100%', gap: 15 }}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: colors.primary,
+                  padding: 15,
+                  borderRadius: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  elevation: 2
+                }}
+                onPress={handleSaveToDevice}
+              >
+                <Ionicons name="folder-open-outline" size={20} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Save to Device</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  backgroundColor: dark ? '#444' : '#fff',
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  padding: 15,
+                  borderRadius: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10
+                }}
+                onPress={handleShareBackup}
+              >
+                <Ionicons name="share-social-outline" size={20} color={colors.text} />
+                <Text style={{ color: colors.text, fontWeight: '600', fontSize: 16 }}>Share via App</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  padding: 10,
+                  alignItems: 'center',
+                  marginTop: 5
+                }}
+                onPress={() => setShowExportModal(false)}
+              >
+                <Text style={{ color: colors.subText, fontWeight: '500' }}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>

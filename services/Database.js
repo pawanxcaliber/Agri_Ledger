@@ -143,13 +143,8 @@ export const getMediaUri = (relativePath) => {
 
 // Export/Import
 // Export/Import with Media (ZIP)
-export const exportFullBackup = async () => {
+export const createBackupZip = async () => {
     try {
-        if (!(await Sharing.isAvailableAsync())) {
-            alert("Sharing is not available");
-            return;
-        }
-
         const zip = new JSZip();
 
         // 1. Add DB JSON
@@ -179,12 +174,49 @@ export const exportFullBackup = async () => {
             encoding: FileSystem.EncodingType.Base64
         });
 
-        // 4. Share
-        await Sharing.shareAsync(backupUri);
+        return backupUri;
+    } catch (e) {
+        console.error("Create Backup Error:", e);
+        throw e;
+    }
+};
 
+export const exportFullBackup = async () => {
+    try {
+        if (!(await Sharing.isAvailableAsync())) {
+            alert("Sharing is not available");
+            return;
+        }
+
+        const backupUri = await createBackupZip();
+        await Sharing.shareAsync(backupUri);
     } catch (e) {
         console.error("Export Error:", e);
         alert("Failed to export backup");
+    }
+};
+
+export const saveBackupToDevice = async () => {
+    try {
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!permissions.granted) {
+            return false;
+        }
+
+        const backupUri = await createBackupZip(); // Get the temporary file
+        const fileContent = await FileSystem.readAsStringAsync(backupUri, { encoding: FileSystem.EncodingType.Base64 });
+
+        const fileName = `AgriLedger_Backup_${new Date().toISOString().split('T')[0]}.zip`;
+        const mimeType = 'application/zip';
+
+        const newFileUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, mimeType);
+        await FileSystem.writeAsStringAsync(newFileUri, fileContent, { encoding: FileSystem.EncodingType.Base64 });
+
+        return true;
+    } catch (e) {
+        console.error("Save to Device Error:", e);
+        alert("Failed to save backup: " + e.message);
+        return false;
     }
 };
 
